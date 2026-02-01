@@ -13,24 +13,41 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalProps) {
+    // Use a ref for the callback to prevent the effect from re-running on every render
+    // if the onClose prop function identity changes
+    const onCloseRef = React.useRef(onClose)
+
     React.useEffect(() => {
+        onCloseRef.current = onClose
+    }, [onClose])
+
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                onCloseRef.current()
+            }
+        }
+
         if (isOpen) {
             document.body.style.overflow = "hidden"
+            document.addEventListener("keydown", handleKeyDown)
         } else {
             document.body.style.overflow = "unset"
+            document.removeEventListener("keydown", handleKeyDown)
         }
         return () => {
             document.body.style.overflow = "unset"
+            document.removeEventListener("keydown", handleKeyDown)
         }
     }, [isOpen])
 
     if (!isOpen) return null
 
     const sizeClasses = {
-        sm: "max-w-md",
-        md: "max-w-lg",
-        lg: "max-w-2xl",
-        xl: "max-w-4xl",
+        sm: "w-[95%] sm:max-w-md",
+        md: "w-[95%] sm:max-w-lg",
+        lg: "w-[95%] sm:max-w-2xl",
+        xl: "w-[95%] sm:max-w-4xl",
     }
 
     return (
@@ -46,12 +63,12 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
                 className={cn(
                     "relative z-10 w-full rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800",
                     sizeClasses[size],
-                    "mx-4 max-h-[90vh] overflow-hidden"
+                    "max-h-[90vh] overflow-hidden"
                 )}
             >
                 {/* Header */}
                 {title && (
-                    <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                             {title}
                         </h2>
@@ -65,7 +82,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
                 )}
 
                 {/* Content */}
-                <div className="max-h-[calc(90vh-8rem)] overflow-y-auto p-6">
+                <div className="max-h-[calc(90vh-8rem)] overflow-y-auto p-4 sm:p-6">
                     {children}
                 </div>
             </div>
