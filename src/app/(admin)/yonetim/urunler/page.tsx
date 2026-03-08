@@ -14,10 +14,298 @@ import {
     Edit,
     Trash2,
     X,
-    Upload,
     Loader2,
     ImagePlus,
+    ChevronLeft,
+    ChevronRight,
+    ZoomIn,
+    Tag,
+    Layers,
+    Hash,
+    Package,
+    ShoppingBag,
 } from "lucide-react"
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function AdminLightbox({
+    images,
+    initialIndex,
+    onClose,
+}: {
+    images: string[]
+    initialIndex: number
+    onClose: () => void
+}) {
+    const [current, setCurrent] = useState(initialIndex)
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose()
+            if (e.key === "ArrowRight") setCurrent(c => (c + 1) % images.length)
+            if (e.key === "ArrowLeft") setCurrent(c => (c - 1 + images.length) % images.length)
+        }
+        window.addEventListener("keydown", handleKey)
+        return () => window.removeEventListener("keydown", handleKey)
+    }, [images.length, onClose])
+
+    return (
+        <div
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/97 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <button onClick={onClose} className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/25 transition-colors">
+                <X className="h-6 w-6" />
+            </button>
+            {images.length > 1 && (
+                <button
+                    onClick={e => { e.stopPropagation(); setCurrent(c => (c - 1 + images.length) % images.length) }}
+                    className="absolute left-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/25"
+                >
+                    <ChevronLeft className="h-7 w-7" />
+                </button>
+            )}
+            <div
+                className="relative mx-20 flex items-center justify-center"
+                style={{ width: "min(90vw,800px)", height: "min(90vh,800px)" }}
+                onClick={e => e.stopPropagation()}
+            >
+                <Image src={images[current]} alt="" fill className="object-contain" sizes="90vw" />
+            </div>
+            {images.length > 1 && (
+                <button
+                    onClick={e => { e.stopPropagation(); setCurrent(c => (c + 1) % images.length) }}
+                    className="absolute right-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/25"
+                >
+                    <ChevronRight className="h-7 w-7" />
+                </button>
+            )}
+            {images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {images.map((img, i) => (
+                        <button
+                            key={i}
+                            onClick={e => { e.stopPropagation(); setCurrent(i) }}
+                            className={`relative h-14 w-14 overflow-hidden rounded-lg border-2 transition-all ${i === current ? "border-white scale-110" : "border-white/30 opacity-60"}`}
+                        >
+                            <Image src={img} alt="" fill className="object-cover" />
+                        </button>
+                    ))}
+                </div>
+            )}
+            {images.length > 1 && (
+                <span className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
+                    {current + 1} / {images.length}
+                </span>
+            )}
+        </div>
+    )
+}
+
+// ─── Ürün Detay Görüntüleme Modalı ────────────────────────────────────────────
+function ProductDetailViewModal({
+    product,
+    onClose,
+    onEdit,
+    onDelete,
+}: {
+    product: Product
+    onClose: () => void
+    onEdit: (p: Product) => void
+    onDelete: (p: Product) => void
+}) {
+    const [currentImage, setCurrentImage] = useState(0)
+    const [lightboxOpen, setLightboxOpen] = useState(false)
+    const [lightboxIndex, setLightboxIndex] = useState(0)
+
+    const openLightbox = (index: number) => {
+        setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
+
+    const isActive = product.status === "Aktif"
+    const stockColor = product.stock === 0 ? "text-red-600" : product.stock < 15 ? "text-orange-600" : "text-green-600"
+    const stockLabel = product.stock === 0 ? "Tükendi" : product.stock < 15 ? "Az Stok" : "Stokta"
+
+    return (
+        <>
+            {lightboxOpen && product.images?.length > 0 && (
+                <AdminLightbox
+                    images={product.images}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxOpen(false)}
+                />
+            )}
+
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={onClose}
+            >
+                <div
+                    className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Close */}
+                    <button
+                        onClick={onClose}
+                        className="absolute right-4 top-4 z-20 rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition-colors"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+
+                    <div className="flex flex-col md:flex-row">
+                        {/* Sol: Görseller */}
+                        <div className="md:w-[45%] flex-shrink-0 flex flex-col">
+                            {/* Ana görsel */}
+                            {product.images && product.images.length > 0 ? (
+                                <div
+                                    className="relative w-full cursor-zoom-in overflow-hidden rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
+                                    style={{ aspectRatio: "1/1" }}
+                                    onClick={() => openLightbox(currentImage)}
+                                >
+                                    <Image
+                                        src={product.images[currentImage]}
+                                        alt={product.name}
+                                        fill
+                                        className="object-cover transition-transform duration-300 hover:scale-105"
+                                        sizes="(max-width:768px) 100vw, 45vw"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 hover:bg-black/15 hover:opacity-100 transition-all">
+                                        <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
+                                            <ZoomIn className="h-4 w-4" /> Tam Ekran
+                                        </span>
+                                    </div>
+                                    {/* Ok butonları */}
+                                    {product.images.length > 1 && (
+                                        <>
+                                            <button
+                                                onClick={e => { e.stopPropagation(); setCurrentImage(c => (c - 1 + product.images.length) % product.images.length) }}
+                                                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
+                                            >
+                                                <ChevronLeft className="h-5 w-5" />
+                                            </button>
+                                            <button
+                                                onClick={e => { e.stopPropagation(); setCurrentImage(c => (c + 1) % product.images.length) }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
+                                            >
+                                                <ChevronRight className="h-5 w-5" />
+                                            </button>
+                                        </>
+                                    )}
+                                    {/* Sayaç */}
+                                    {product.images.length > 1 && (
+                                        <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">
+                                            {currentImage + 1}/{product.images.length}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                <div
+                                    className="flex items-center justify-center rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
+                                    style={{ aspectRatio: "1/1" }}
+                                >
+                                    <Package className="h-24 w-24 text-slate-300" />
+                                </div>
+                            )}
+
+                            {/* Küçük görseller */}
+                            {product.images && product.images.length > 1 && (
+                                <div className="flex gap-2 p-3 flex-wrap bg-slate-50 dark:bg-slate-800/50">
+                                    {product.images.map((img, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setCurrentImage(i)}
+                                            className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all ${i === currentImage ? "border-[#135bec] scale-105" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                        >
+                                            <Image src={img} alt="" fill className="object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sağ: Ürün Bilgileri */}
+                        <div className="flex flex-1 flex-col p-6 gap-4">
+                            {/* Durum rozetleri */}
+                            <div className="flex gap-2 flex-wrap">
+                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+                                    }`}>
+                                    {isActive ? "● Aktif" : "○ Pasif"}
+                                </span>
+                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 ${stockColor}`}>
+                                    <ShoppingBag className="mr-1 h-3 w-3" />{stockLabel}
+                                </span>
+                            </div>
+
+                            {/* Ürün adı */}
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-snug">
+                                {product.name}
+                            </h2>
+
+                            {/* Meta grid */}
+                            <div className="grid grid-cols-1 gap-3 text-sm">
+                                <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                                    <Hash className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-slate-400">SKU</p>
+                                        <p className="font-mono font-semibold text-slate-800 dark:text-slate-200">{product.sku}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                                        <Tag className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-xs text-slate-400">Marka</p>
+                                            <p className="font-semibold text-slate-800 dark:text-slate-200">{product.brand}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                                        <Layers className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-xs text-slate-400">Kategori</p>
+                                            <p className="font-semibold text-slate-800 dark:text-slate-200">{product.category}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Fiyat & Stok */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-xl border border-[#135bec]/20 bg-blue-50 p-4 dark:bg-blue-950/20">
+                                    <p className="text-xs text-slate-500 mb-1">Toptan Fiyat</p>
+                                    <p className="text-2xl font-bold text-[#135bec]">{formatPrice(product.price)}</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                                    <p className="text-xs text-slate-500 mb-1">Stok Adedi</p>
+                                    <p className={`text-2xl font-bold ${stockColor}`}>{product.stock}</p>
+                                </div>
+                            </div>
+
+                            {/* Aksiyon Butonları */}
+                            <div className="mt-auto flex gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => { onClose(); onEdit(product); }}
+                                >
+                                    <Edit className="h-4 w-4" />
+                                    Düzenle
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    className="flex-1"
+                                    onClick={() => { onClose(); onDelete(product); }}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Sil
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
 
 interface Product {
     id: string
@@ -712,10 +1000,14 @@ export default function UrunlerPage() {
                                 </tr>
                             ) : (
                                 filteredProducts.map((product) => (
-                                    <tr key={product.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <tr
+                                        key={product.id}
+                                        className="cursor-pointer transition-colors hover:bg-blue-50/60 dark:hover:bg-slate-800/70"
+                                        onClick={() => { setSelectedProduct(product); setIsViewModalOpen(true); }}
+                                    >
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="relative h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
+                                                <div className="relative h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800 flex-shrink-0">
                                                     {product.image_url ? (
                                                         <Image src={product.image_url} alt={product.name} fill className="object-cover" />
                                                     ) : (
@@ -725,7 +1017,7 @@ export default function UrunlerPage() {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-slate-900 dark:text-white">{product.name}</p>
+                                                    <p className="font-semibold text-slate-900 dark:text-white">{product.name}</p>
                                                     <p className="text-xs text-slate-500">{product.brand}</p>
                                                 </div>
                                             </div>
@@ -744,27 +1036,20 @@ export default function UrunlerPage() {
                                             </Badge>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button
-                                                    onClick={() => { setSelectedProduct(product); setIsViewModalOpen(true); }}
-                                                    className="p-1 text-slate-400 hover:text-[#135bec]"
-                                                    title="Görüntüle"
-                                                >
-                                                    <Eye className="h-5 w-5" />
-                                                </button>
+                                            <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
                                                 <button
                                                     onClick={() => openEditModal(product)}
-                                                    className="p-1 text-slate-400 hover:text-[#135bec]"
+                                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#135bec] dark:hover:bg-slate-700"
                                                     title="Düzenle"
                                                 >
-                                                    <Edit className="h-5 w-5" />
+                                                    <Edit className="h-4 w-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => { setSelectedProduct(product); setIsDeleteModalOpen(true); }}
-                                                    className="p-1 text-slate-400 hover:text-red-500"
+                                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
                                                     title="Sil"
                                                 >
-                                                    <Trash2 className="h-5 w-5" />
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -786,33 +1071,15 @@ export default function UrunlerPage() {
                 <ProductForm isEdit />
             </Modal>
 
-            {/* View Product Modal */}
-            <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Ürün Detayları">
-                {selectedProduct && (
-                    <div className="space-y-4">
-                        {/* Images Gallery */}
-                        {selectedProduct.images && selectedProduct.images.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {selectedProduct.images.map((url, idx) => (
-                                    <div key={idx} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <Image src={url} alt={`${selectedProduct.name} ${idx + 1}`} fill className="object-cover" />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selectedProduct.name}</h3>
-                            <p className="text-sm text-slate-500">{selectedProduct.brand} • {selectedProduct.category}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-                            <div><span className="text-sm text-slate-500">SKU:</span><p className="font-medium">{selectedProduct.sku}</p></div>
-                            <div><span className="text-sm text-slate-500">Fiyat:</span><p className="font-medium text-[#135bec]">{formatPrice(selectedProduct.price)}</p></div>
-                            <div><span className="text-sm text-slate-500">Stok:</span><p className="font-medium">{selectedProduct.stock} adet</p></div>
-                            <div><span className="text-sm text-slate-500">Durum:</span><p><Badge variant={selectedProduct.status === "Aktif" ? "success" : "default"}>{selectedProduct.status}</Badge></p></div>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            {/* Detaylı Yeni View Modal */}
+            {isViewModalOpen && selectedProduct && (
+                <ProductDetailViewModal
+                    product={selectedProduct}
+                    onClose={() => setIsViewModalOpen(false)}
+                    onEdit={(p) => { openEditModal(p) }}
+                    onDelete={(p) => { setSelectedProduct(p); setIsDeleteModalOpen(true); }}
+                />
+            )}
 
             {/* Delete Confirmation Modal */}
             <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Ürünü Sil" size="sm">
