@@ -26,6 +26,248 @@ import {
     ShoppingBag,
 } from "lucide-react"
 
+// ─── ProductForm Props ────────────────────────────────────────────────────────
+interface FormData {
+    name: string; sku: string; category_id: string; brand_id: string
+    model: string; memory: string; price: string; original_price: string
+    cost_price: string; stock: string; min_order_quantity: string
+    status: string; images: string[]; description: string
+    warranty_info: string; delivery_time: string
+    specifications: Record<string, string>
+}
+interface ProductFormProps {
+    isEdit?: boolean
+    formData: FormData
+    setFormData: React.Dispatch<React.SetStateAction<FormData>>
+    brands: { id: string; name: string }[]
+    categories: { id: string; name: string }[]
+    memoryOptions: string[]
+    modelsForBrand: string[]
+    uploading: boolean
+    loading: boolean
+    fileInputRef: React.RefObject<HTMLInputElement | null>
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+    onRemoveImage: (index: number) => void
+    onBrandChange: (id: string) => void
+    onModelChange: (model: string) => void
+    onMemoryChange: (memory: string) => void
+    onGenerateSKU: () => string
+    onAddSpecRow: () => void
+    onUpdateSpecValue: (key: string, val: string) => void
+    onRemoveSpecRow: (key: string) => void
+    onSubmit: () => void
+    onCancel: () => void
+}
+// ─── ProductForm (MODÜL DÜZEYİNDE — focus kaybını önler) ──────────────────────
+function ProductForm({
+    isEdit = false, formData, setFormData, brands, categories,
+    memoryOptions, modelsForBrand, uploading, loading, fileInputRef,
+    onImageUpload, onRemoveImage, onBrandChange, onModelChange, onMemoryChange,
+    onGenerateSKU, onAddSpecRow, onUpdateSpecValue, onRemoveSpecRow,
+    onSubmit, onCancel,
+}: ProductFormProps) {
+    return (
+        <div className="space-y-6">
+            {/* Görseller */}
+            <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">📷 Ürün Görselleri</label>
+                <div className="flex flex-wrap gap-3">
+                    {formData.images.map((url, index) => (
+                        <div key={index} className="group relative h-24 w-24 overflow-hidden rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                            <Image src={url} alt={`Product ${index + 1}`} fill className="object-cover" />
+                            <button onClick={() => onRemoveImage(index)}
+                                className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                <X className="h-3 w-3" />
+                            </button>
+                        </div>
+                    ))}
+                    <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                        className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 dark:bg-slate-800">
+                        {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <><ImagePlus className="h-6 w-6" /><span className="mt-1 text-xs">Ekle</span></>}
+                    </button>
+                </div>
+                <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={onImageUpload} />
+                <p className="text-xs text-slate-500">Birden fazla resim seçebilirsiniz</p>
+            </div>
+
+            {/* 1. Temel Bilgiler */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📋 Temel Bilgiler</p>
+                </div>
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Marka *</label>
+                        <select value={formData.brand_id} onChange={e => onBrandChange(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Marka Seçin</option>
+                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kategori *</label>
+                        <select value={formData.category_id} onChange={e => setFormData(p => ({ ...p, category_id: e.target.value }))}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Kategori Seçin</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Model *</label>
+                        <select value={formData.model} onChange={e => onModelChange(e.target.value)}
+                            disabled={!formData.brand_id}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Model Seçin</option>
+                            {modelsForBrand.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Hafıza/Depolama</label>
+                        <select value={formData.memory} onChange={e => onMemoryChange(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Hafıza Seçin (Opsiyonel)</option>
+                            {memoryOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün Adı</label>
+                        <Input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} placeholder="Otomatik oluşturulur veya özel girin" />
+                        <p className="mt-1 text-xs text-slate-500">Model ve hafıza seçildiğinde otomatik oluşturulur</p>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">SKU</label>
+                        <div className="flex gap-2">
+                            <Input value={formData.sku} onChange={e => setFormData(p => ({ ...p, sku: e.target.value }))} placeholder="Otomatik oluşturulur" className="flex-1" />
+                            <Button type="button" variant="outline" size="sm" onClick={() => setFormData(p => ({ ...p, sku: onGenerateSKU() }))}>Oluştur</Button>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Durum</label>
+                        <select value={formData.status} onChange={e => setFormData(p => ({ ...p, status: e.target.value }))}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. Fiyat & Stok */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">💰 Fiyat & Stok</p>
+                </div>
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Toptan Fiyat (₺) *</label>
+                        <input type="number" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} placeholder="64999"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Piyasa Fiyatı (₺) <span className="text-slate-400 font-normal">(opsiyonel)</span></label>
+                        <input type="number" value={formData.original_price} onChange={e => setFormData(p => ({ ...p, original_price: e.target.value }))} placeholder="79999"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                        <p className="mt-1 text-xs text-slate-400">Üstü çizili piyasa fiyatı olarak gösterilir</p>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Maliyet Fiyatı (₺) <span className="text-slate-400 font-normal">(gizli)</span></label>
+                        <input type="number" value={formData.cost_price} onChange={e => setFormData(p => ({ ...p, cost_price: e.target.value }))} placeholder="55000"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                        <p className="mt-1 text-xs text-slate-400">Kâr marjı hesabı için kullanılır, bayilere gösterilmez</p>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Stok Miktarı *</label>
+                        <input type="number" value={formData.stock} onChange={e => setFormData(p => ({ ...p, stock: e.target.value }))} placeholder="100"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Min. Sipariş Adedi</label>
+                        <input type="number" value={formData.min_order_quantity} onChange={e => setFormData(p => ({ ...p, min_order_quantity: e.target.value }))} min="1" placeholder="1"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Açıklama */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📝 Ürün Açıklaması</p>
+                </div>
+                <div className="p-4">
+                    <textarea
+                        value={formData.description}
+                        onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+                        placeholder="Ürün hakkında detaylı açıklama yazın: özellikler, kullanım alanları, renkler, dikkat edilmesi gereken hususlar..."
+                        rows={5}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white resize-none"
+                    />
+                </div>
+            </div>
+
+            {/* 4. Teknik Özellikler */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📱 Teknik Özellikler</p>
+                    <button onClick={onAddSpecRow} type="button"
+                        className="flex items-center gap-1 rounded-lg bg-[#135bec] px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                        + Özellik Ekle
+                    </button>
+                </div>
+                <div className="p-4 space-y-2">
+                    {Object.entries(formData.specifications).length === 0 ? (
+                        <p className="text-center text-sm text-slate-400 py-4">
+                            Henüz özellik eklenmedi. "+ Özellik Ekle" ile ekleyin.<br />
+                            <span className="text-xs">Örn: İşlemci, RAM, Ekran Boyutu, Kamera, Batarya, Renk, Ağırlık...</span>
+                        </p>
+                    ) : (
+                        Object.entries(formData.specifications).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2">
+                                <span className="w-36 flex-shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">{key}</span>
+                                <input
+                                    value={val}
+                                    onChange={e => onUpdateSpecValue(key, e.target.value)}
+                                    placeholder={`${key} değerini girin`}
+                                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-[#135bec] focus:outline-none"
+                                />
+                                <button onClick={() => onRemoveSpecRow(key)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* 5. Garanti & Teslimat */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">🛡️ Garanti & Teslimat</p>
+                </div>
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Garanti Bilgisi</label>
+                        <input type="text" value={formData.warranty_info} onChange={e => setFormData(p => ({ ...p, warranty_info: e.target.value }))} placeholder="Örn: 2 Yıl Türkiye Garantisi"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Teslimat Süresi</label>
+                        <input type="text" value={formData.delivery_time} onChange={e => setFormData(p => ({ ...p, delivery_time: e.target.value }))} placeholder="Örn: 1-3 İş Günü"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={onCancel}>İptal</Button>
+                <Button onClick={onSubmit} disabled={loading || uploading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isEdit ? "Değişiklikleri Kaydet" : "Ürünü Ekle"}
+                </Button>
+            </div>
+        </div>
+    )
+}
+
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 function AdminLightbox({
     images,
@@ -834,7 +1076,7 @@ export default function UrunlerPage() {
         setIsEditModalOpen(true)
     }
 
-    // Helper for specification key-value pairs
+    // Spec helpers
     const addSpecRow = () => {
         const key = prompt("Özellik adı (örn: RAM, Ekran, Renk):")
         if (!key) return
@@ -851,233 +1093,6 @@ export default function UrunlerPage() {
         })
     }
 
-    // Form component for Add/Edit
-    const ProductForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-        <div className="space-y-6">
-            {/* Image Upload Section */}
-            <div className="space-y-3">
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    📷 Ürün Görselleri
-                </label>
-                <div className="flex flex-wrap gap-3">
-                    {formData.images.map((url, index) => (
-                        <div key={index} className="group relative h-24 w-24 overflow-hidden rounded-xl border-2 border-slate-200 dark:border-slate-700">
-                            <Image src={url} alt={`Product ${index + 1}`} fill className="object-cover" />
-                            <button
-                                onClick={() => removeImage(index)}
-                                className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        </div>
-                    ))}
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        {uploading ? (
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : (
-                            <>
-                                <ImagePlus className="h-6 w-6" />
-                                <span className="mt-1 text-xs">Ekle</span>
-                            </>
-                        )}
-                    </button>
-                </div>
-                <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                <p className="text-xs text-slate-500">Birden fazla resim seçebilirsiniz</p>
-            </div>
-
-            {/* 1. Temel Bilgiler */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📋 Temel Bilgiler</p>
-                </div>
-                <div className="p-4 grid gap-4 sm:grid-cols-2">
-                    {/* Brand */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Marka *</label>
-                        <select value={formData.brand_id} onChange={e => handleBrandChange(e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
-                            <option value="">Marka Seçin</option>
-                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                    </div>
-                    {/* Category */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kategori *</label>
-                        <select value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
-                            <option value="">Kategori Seçin</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    {/* Model */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Model *</label>
-                        <select value={formData.model} onChange={e => handleModelChange(e.target.value)}
-                            disabled={!formData.brand_id}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800">
-                            <option value="">Model Seçin</option>
-                            {getModelsForBrand().map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                    </div>
-                    {/* Memory */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Hafıza/Depolama</label>
-                        <select value={formData.memory} onChange={e => handleMemoryChange(e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
-                            <option value="">Hafıza Seçin (Opsiyonel)</option>
-                            {memoryOptions.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                    </div>
-                    {/* Product Name */}
-                    <div className="sm:col-span-2">
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün Adı</label>
-                        <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Otomatik oluşturulur veya özel girin" />
-                        <p className="mt-1 text-xs text-slate-500">Model ve hafıza seçildiğinde otomatik oluşturulur</p>
-                    </div>
-                    {/* SKU */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">SKU</label>
-                        <div className="flex gap-2">
-                            <Input value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Otomatik oluşturulur" className="flex-1" />
-                            <Button type="button" variant="outline" size="sm" onClick={() => setFormData({ ...formData, sku: generateSKU() })}>Oluştur</Button>
-                        </div>
-                    </div>
-                    {/* Status */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Durum</label>
-                        <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
-                            <option value="active">Aktif</option>
-                            <option value="inactive">Pasif</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* 2. Fiyat & Stok */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">💰 Fiyat & Stok</p>
-                </div>
-                <div className="p-4 grid gap-4 sm:grid-cols-2">
-                    {/* Toptan Fiyat */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Toptan Fiyat (₺) *</label>
-                        <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} placeholder="64999"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                    </div>
-                    {/* Piyasa Fiyatı */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Piyasa Fiyatı (₺) <span className="text-slate-400 font-normal">(opsiyonel)</span></label>
-                        <input type="number" value={formData.original_price} onChange={e => setFormData({ ...formData, original_price: e.target.value })} placeholder="79999"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                        <p className="mt-1 text-xs text-slate-400">Üstü çizili piyasa fiyatı olarak gösterilir</p>
-                    </div>
-                    {/* Maliyet */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Maliyet Fiyatı (₺) <span className="text-slate-400 font-normal">(gizli)</span></label>
-                        <input type="number" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} placeholder="55000"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                        <p className="mt-1 text-xs text-slate-400">Kâr marjı hesabı için kullanılır, bayilere gösterilmez</p>
-                    </div>
-                    {/* Stok */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Stok Miktarı *</label>
-                        <input type="number" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} placeholder="100"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                    </div>
-                    {/* Min Sipariş */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Min. Sipariş Adedi</label>
-                        <input type="number" value={formData.min_order_quantity} onChange={e => setFormData({ ...formData, min_order_quantity: e.target.value })} min="1" placeholder="1"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                    </div>
-                </div>
-            </div>
-
-            {/* 3. Açıklama */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📝 Ürün Açıklaması</p>
-                </div>
-                <div className="p-4">
-                    <textarea
-                        value={formData.description}
-                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Ürün hakkında detaylı açıklama yazın: özellikler, kullanım alanları, renkler, dikkat edilmesi gereken hususlar..."
-                        rows={5}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white resize-none"
-                    />
-                </div>
-            </div>
-
-            {/* 4. Teknik Özellikler */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📱 Teknik Özellikler</p>
-                    <button onClick={addSpecRow} type="button"
-                        className="flex items-center gap-1 rounded-lg bg-[#135bec] px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
-                        + Özellik Ekle
-                    </button>
-                </div>
-                <div className="p-4 space-y-2">
-                    {Object.entries(formData.specifications).length === 0 ? (
-                        <p className="text-center text-sm text-slate-400 py-4">
-                            Henüz özellik eklenmedi. "+ Özellik Ekle" ile ekleyin.<br />
-                            <span className="text-xs">Örn: İşlemci, RAM, Ekran Boyutu, Kamera, Batarya, Renk, Ağırlık...</span>
-                        </p>
-                    ) : (
-                        Object.entries(formData.specifications).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-2">
-                                <span className="w-36 flex-shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">{key}</span>
-                                <input
-                                    value={val}
-                                    onChange={e => updateSpecValue(key, e.target.value)}
-                                    placeholder={`${key} değerini girin`}
-                                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-[#135bec] focus:outline-none"
-                                />
-                                <button onClick={() => removeSpecRow(key)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30">
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* 5. Garanti & Teslimat */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">🛡️ Garanti & Teslimat</p>
-                </div>
-                <div className="p-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Garanti Bilgisi</label>
-                        <input type="text" value={formData.warranty_info} onChange={e => setFormData({ ...formData, warranty_info: e.target.value })} placeholder="Örn: 2 Yıl Türkiye Garantisi"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                    </div>
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Teslimat Süresi</label>
-                        <input type="text" value={formData.delivery_time} onChange={e => setFormData({ ...formData, delivery_time: e.target.value })} placeholder="Örn: 1-3 İş Günü"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => isEdit ? setIsEditModalOpen(false) : setIsAddModalOpen(false)}>İptal</Button>
-                <Button onClick={isEdit ? handleEdit : handleAdd} disabled={loading || uploading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {isEdit ? "Değişiklikleri Kaydet" : "Ürünü Ekle"}
-                </Button>
-            </div>
-        </div>
-    )
 
     return (
         <div className="flex-1 overflow-auto p-6">
@@ -1246,12 +1261,55 @@ export default function UrunlerPage() {
 
             {/* Add Product Modal */}
             <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Ürün Ekle" size="lg">
-                <ProductForm />
+                <ProductForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    brands={brands}
+                    categories={categories}
+                    memoryOptions={memoryOptions}
+                    modelsForBrand={getModelsForBrand()}
+                    uploading={uploading}
+                    loading={loading}
+                    fileInputRef={fileInputRef}
+                    onImageUpload={handleImageUpload}
+                    onRemoveImage={removeImage}
+                    onBrandChange={handleBrandChange}
+                    onModelChange={handleModelChange}
+                    onMemoryChange={handleMemoryChange}
+                    onGenerateSKU={generateSKU}
+                    onAddSpecRow={addSpecRow}
+                    onUpdateSpecValue={updateSpecValue}
+                    onRemoveSpecRow={removeSpecRow}
+                    onSubmit={handleAdd}
+                    onCancel={() => setIsAddModalOpen(false)}
+                />
             </Modal>
 
             {/* Edit Product Modal */}
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Ürün Düzenle" size="lg">
-                <ProductForm isEdit />
+                <ProductForm
+                    isEdit
+                    formData={formData}
+                    setFormData={setFormData}
+                    brands={brands}
+                    categories={categories}
+                    memoryOptions={memoryOptions}
+                    modelsForBrand={getModelsForBrand()}
+                    uploading={uploading}
+                    loading={loading}
+                    fileInputRef={fileInputRef}
+                    onImageUpload={handleImageUpload}
+                    onRemoveImage={removeImage}
+                    onBrandChange={handleBrandChange}
+                    onModelChange={handleModelChange}
+                    onMemoryChange={handleMemoryChange}
+                    onGenerateSKU={generateSKU}
+                    onAddSpecRow={addSpecRow}
+                    onUpdateSpecValue={updateSpecValue}
+                    onRemoveSpecRow={removeSpecRow}
+                    onSubmit={handleEdit}
+                    onCancel={() => setIsEditModalOpen(false)}
+                />
             </Modal>
 
             {/* Detaylı Yeni View Modal */}
