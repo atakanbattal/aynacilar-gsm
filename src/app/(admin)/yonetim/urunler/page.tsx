@@ -100,7 +100,7 @@ function AdminLightbox({
     )
 }
 
-// ─── Ürün Detay Görüntüleme Modalı ────────────────────────────────────────────
+// ─── Ürün Detay Görüntüleme Modalı (Premium / Büyük) ─────────────────────────
 function ProductDetailViewModal({
     product,
     onClose,
@@ -116,49 +116,68 @@ function ProductDetailViewModal({
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
 
-    const openLightbox = (index: number) => {
-        setLightboxIndex(index)
-        setLightboxOpen(true)
-    }
+    const openLightbox = (index: number) => { setLightboxIndex(index); setLightboxOpen(true) }
 
     const isActive = product.status === "Aktif"
-    const stockColor = product.stock === 0 ? "text-red-600" : product.stock < 15 ? "text-orange-600" : "text-green-600"
-    const stockLabel = product.stock === 0 ? "Tükendi" : product.stock < 15 ? "Az Stok" : "Stokta"
+    const stockPct = Math.min(100, Math.round((product.stock / (product.stock + 50)) * 100))
+    const stockColor = product.stock === 0 ? "bg-red-500" : product.stock < 15 ? "bg-orange-400" : "bg-green-500"
+    const stockLabel = product.stock === 0 ? "Tükendi" : product.stock < 15 ? "Az Stok" : "Yeterli Stok"
+    const stockTextColor = product.stock === 0 ? "text-red-600" : product.stock < 15 ? "text-orange-600" : "text-green-600"
+    const diskountPct = product.original_price && product.original_price > product.price
+        ? Math.round((1 - product.price / product.original_price) * 100)
+        : null
+    const profitMargin = product.cost_price && product.cost_price > 0
+        ? Math.round(((product.price - product.cost_price) / product.cost_price) * 100)
+        : null
+    const specs = product.specifications && Object.keys(product.specifications).length > 0
+        ? Object.entries(product.specifications)
+        : null
+    const addedDate = product.created_at
+        ? new Date(product.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
+        : null
 
     return (
         <>
             {lightboxOpen && product.images?.length > 0 && (
-                <AdminLightbox
-                    images={product.images}
-                    initialIndex={lightboxIndex}
-                    onClose={() => setLightboxOpen(false)}
-                />
+                <AdminLightbox images={product.images} initialIndex={lightboxIndex} onClose={() => setLightboxOpen(false)} />
             )}
 
             {/* Backdrop */}
-            <div
-                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                onClick={onClose}
-            >
+            <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
                 <div
-                    className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
+                    className="relative my-4 w-full max-w-6xl rounded-3xl bg-white shadow-2xl dark:bg-slate-900 overflow-hidden"
                     onClick={e => e.stopPropagation()}
                 >
-                    {/* Close */}
-                    <button
-                        onClick={onClose}
-                        className="absolute right-4 top-4 z-20 rounded-full bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition-colors"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
+                    {/* Premium header bar */}
+                    <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#135bec] px-6 py-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+                                <Package className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-white/60">Ürün Detayı</p>
+                                <h2 className="text-base font-bold text-white leading-tight line-clamp-1">{product.name}</h2>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isActive ? "bg-green-500/20 text-green-300 ring-1 ring-green-500/40" : "bg-slate-500/20 text-slate-300"
+                                }`}>
+                                {isActive ? "● Aktif" : "○ Pasif"}
+                            </span>
+                            <button onClick={onClose} className="rounded-full bg-white/10 p-1.5 text-white hover:bg-white/25 transition-colors">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
 
-                    <div className="flex flex-col md:flex-row">
-                        {/* Sol: Görseller */}
-                        <div className="md:w-[45%] flex-shrink-0 flex flex-col">
-                            {/* Ana görsel */}
+                    {/* Ana içerik: sol görsel + sağ bilgiler */}
+                    <div className="flex flex-col lg:flex-row">
+
+                        {/* SOL: Görsel Galerisi */}
+                        <div className="lg:w-[42%] flex-shrink-0 flex flex-col bg-slate-50 dark:bg-slate-800/50">
                             {product.images && product.images.length > 0 ? (
                                 <div
-                                    className="relative w-full cursor-zoom-in overflow-hidden rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
+                                    className="relative w-full cursor-zoom-in overflow-hidden bg-white dark:bg-slate-800"
                                     style={{ aspectRatio: "1/1" }}
                                     onClick={() => openLightbox(currentImage)}
                                 >
@@ -166,137 +185,188 @@ function ProductDetailViewModal({
                                         src={product.images[currentImage]}
                                         alt={product.name}
                                         fill
-                                        className="object-cover transition-transform duration-300 hover:scale-105"
-                                        sizes="(max-width:768px) 100vw, 45vw"
+                                        className="object-contain p-4 transition-transform duration-500 hover:scale-110"
+                                        sizes="(max-width:1024px) 100vw, 42vw"
                                     />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 hover:bg-black/15 hover:opacity-100 transition-all">
-                                        <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
-                                            <ZoomIn className="h-4 w-4" /> Tam Ekran
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 hover:bg-black/10 hover:opacity-100 transition-all">
+                                        <span className="flex items-center gap-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-800 shadow-xl">
+                                            <ZoomIn className="h-4 w-4" /> Tam Ekran Görüntüle
                                         </span>
                                     </div>
-                                    {/* Ok butonları */}
                                     {product.images.length > 1 && (
                                         <>
-                                            <button
-                                                onClick={e => { e.stopPropagation(); setCurrentImage(c => (c - 1 + product.images.length) % product.images.length) }}
-                                                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
-                                            >
+                                            <button onClick={e => { e.stopPropagation(); setCurrentImage(c => (c - 1 + product.images.length) % product.images.length) }}
+                                                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-slate-700 hover:bg-white shadow-md transition">
                                                 <ChevronLeft className="h-5 w-5" />
                                             </button>
-                                            <button
-                                                onClick={e => { e.stopPropagation(); setCurrentImage(c => (c + 1) % product.images.length) }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
-                                            >
+                                            <button onClick={e => { e.stopPropagation(); setCurrentImage(c => (c + 1) % product.images.length) }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 text-slate-700 hover:bg-white shadow-md transition">
                                                 <ChevronRight className="h-5 w-5" />
                                             </button>
+                                            <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
+                                                {currentImage + 1} / {product.images.length}
+                                            </span>
                                         </>
-                                    )}
-                                    {/* Sayaç */}
-                                    {product.images.length > 1 && (
-                                        <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">
-                                            {currentImage + 1}/{product.images.length}
-                                        </span>
                                     )}
                                 </div>
                             ) : (
-                                <div
-                                    className="flex items-center justify-center rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
-                                    style={{ aspectRatio: "1/1" }}
-                                >
-                                    <Package className="h-24 w-24 text-slate-300" />
+                                <div className="flex items-center justify-center bg-slate-100 dark:bg-slate-800" style={{ aspectRatio: "1/1" }}>
+                                    <Package className="h-32 w-32 text-slate-300" />
                                 </div>
                             )}
 
-                            {/* Küçük görseller */}
+                            {/* Thumbnails */}
                             {product.images && product.images.length > 1 && (
-                                <div className="flex gap-2 p-3 flex-wrap bg-slate-50 dark:bg-slate-800/50">
+                                <div className="flex flex-wrap gap-2 p-4">
                                     {product.images.map((img, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setCurrentImage(i)}
-                                            className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all ${i === currentImage ? "border-[#135bec] scale-105" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                        <button key={i} onClick={() => setCurrentImage(i)}
+                                            className={`relative h-16 w-16 overflow-hidden rounded-xl border-2 transition-all ${i === currentImage ? "border-[#135bec] ring-2 ring-[#135bec]/20 scale-105" : "border-slate-200 dark:border-slate-700 opacity-60 hover:opacity-100"
+                                                }`}
                                         >
                                             <Image src={img} alt="" fill className="object-cover" />
                                         </button>
                                     ))}
                                 </div>
                             )}
+
+                            {/* SKU + tarih küçük bilgi */}
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-400 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Hash className="h-3.5 w-3.5" />
+                                    <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{product.sku}</span>
+                                </div>
+                                {addedDate && <p>Ekleme tarihi: {addedDate}</p>}
+                            </div>
                         </div>
 
-                        {/* Sağ: Ürün Bilgileri */}
-                        <div className="flex flex-1 flex-col p-6 gap-4">
-                            {/* Durum rozetleri */}
-                            <div className="flex gap-2 flex-wrap">
-                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
-                                    }`}>
-                                    {isActive ? "● Aktif" : "○ Pasif"}
-                                </span>
-                                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 ${stockColor}`}>
-                                    <ShoppingBag className="mr-1 h-3 w-3" />{stockLabel}
-                                </span>
+                        {/* SAĞ: Ürün Bilgi Paneli */}
+                        <div className="flex-1 overflow-y-auto max-h-[85vh] divide-y divide-slate-100 dark:divide-slate-800">
+
+                            {/* Başlık & Meta */}
+                            <div className="p-6">
+                                <div className="flex flex-wrap items-start gap-2 mb-3">
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isActive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-slate-100 text-slate-500"
+                                        }`}>{isActive ? "● Aktif" : "○ Pasif"}</span>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold bg-slate-100 ${stockTextColor} dark:bg-slate-800`}>
+                                        {stockLabel} ({product.stock} adet)
+                                    </span>
+                                    {diskountPct && (
+                                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-600">
+                                            %{diskountPct} İndirim
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight mb-2">{product.name}</h3>
+                                <div className="flex items-center gap-3 text-sm text-slate-500">
+                                    <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" />{product.brand}</span>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1"><Layers className="h-3.5 w-3.5" />{product.category}</span>
+                                </div>
                             </div>
 
-                            {/* Ürün adı */}
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-snug">
-                                {product.name}
-                            </h2>
-
-                            {/* Meta grid */}
-                            <div className="grid grid-cols-1 gap-3 text-sm">
-                                <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-                                    <Hash className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                    <div>
-                                        <p className="text-xs text-slate-400">SKU</p>
-                                        <p className="font-mono font-semibold text-slate-800 dark:text-slate-200">{product.sku}</p>
+                            {/* Fiyat & Stok Analizi */}
+                            <div className="p-6 space-y-4">
+                                <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">💰 Fiyat & Stok Analizi</h4>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                    {/* Toptan Fiyat */}
+                                    <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 text-white">
+                                        <p className="text-xs font-medium text-blue-200 mb-1">Toptan Fiyat</p>
+                                        <p className="text-xl font-bold">{formatPrice(product.price)}</p>
+                                        <p className="text-xs text-blue-200 mt-0.5">KDV Dahil</p>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-                                        <Tag className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-xs text-slate-400">Marka</p>
-                                            <p className="font-semibold text-slate-800 dark:text-slate-200">{product.brand}</p>
+                                    {/* Piyasa Fiyatı */}
+                                    {product.original_price ? (
+                                        <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4">
+                                            <p className="text-xs font-medium text-slate-400 mb-1">Piyasa Fiyatı</p>
+                                            <p className="text-xl font-bold text-slate-700 dark:text-slate-200">{formatPrice(product.original_price)}</p>
+                                            {diskountPct && <p className="text-xs text-green-600 mt-0.5 font-medium">%{diskountPct} daha ucuz</p>}
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-                                        <Layers className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-xs text-slate-400">Kategori</p>
-                                            <p className="font-semibold text-slate-800 dark:text-slate-200">{product.category}</p>
+                                    ) : null}
+                                    {/* Maliyet & Kâr */}
+                                    {product.cost_price ? (
+                                        <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4">
+                                            <p className="text-xs font-medium text-emerald-600 mb-1">Tahmini Kâr Marjı</p>
+                                            <p className="text-xl font-bold text-emerald-700">{profitMargin !== null ? `%${profitMargin}` : "—"}</p>
+                                            <p className="text-xs text-emerald-500 mt-0.5">Maliyet: {formatPrice(product.cost_price)}</p>
                                         </div>
+                                    ) : null}
+                                </div>
+
+                                {/* Stok göstergesi */}
+                                <div>
+                                    <div className="flex justify-between text-sm mb-2">
+                                        <span className="font-medium text-slate-700 dark:text-slate-300">Stok Durumu</span>
+                                        <span className={`font-bold ${stockTextColor}`}>{product.stock} adet • {stockLabel}</span>
                                     </div>
+                                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                        <div className={`h-full rounded-full transition-all ${stockColor}`} style={{ width: `${stockPct}%` }} />
+                                    </div>
+                                    {product.min_order_quantity > 1 && (
+                                        <p className="mt-1.5 text-xs text-slate-400">Minimum sipariş: {product.min_order_quantity} adet</p>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Fiyat & Stok */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="rounded-xl border border-[#135bec]/20 bg-blue-50 p-4 dark:bg-blue-950/20">
-                                    <p className="text-xs text-slate-500 mb-1">Toptan Fiyat</p>
-                                    <p className="text-2xl font-bold text-[#135bec]">{formatPrice(product.price)}</p>
+                            {/* Açıklama */}
+                            {product.description && (
+                                <div className="p-6 space-y-2">
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">📝 Ürün Açıklaması</h4>
+                                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
+                                        {product.description}
+                                    </p>
                                 </div>
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-                                    <p className="text-xs text-slate-500 mb-1">Stok Adedi</p>
-                                    <p className={`text-2xl font-bold ${stockColor}`}>{product.stock}</p>
+                            )}
+
+                            {/* Teknik Özellikler */}
+                            {specs && (
+                                <div className="p-6 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">📱 Teknik Özellikler</h4>
+                                    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                                        {specs.map(([key, val], i) => (
+                                            <div key={key} className={`flex items-start gap-4 px-4 py-3 text-sm ${i % 2 === 0 ? "bg-slate-50 dark:bg-slate-800/50" : "bg-white dark:bg-slate-900"
+                                                }`}>
+                                                <span className="w-36 flex-shrink-0 font-medium text-slate-500 dark:text-slate-400">{key}</span>
+                                                <span className="font-semibold text-slate-800 dark:text-slate-100">{String(val)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Garanti & Teslimat */}
+                            {(product.warranty_info || product.delivery_time) && (
+                                <div className="p-6 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">🛡️ Garanti & Teslimat</h4>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {product.warranty_info && (
+                                            <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                                <span className="text-2xl">🛡️</span>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Garanti Bilgisi</p>
+                                                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{product.warranty_info}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {product.delivery_time && (
+                                            <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+                                                <span className="text-2xl">🚚</span>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Teslimat Süresi</p>
+                                                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{product.delivery_time}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Aksiyon Butonları */}
-                            <div className="mt-auto flex gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => { onClose(); onEdit(product); }}
-                                >
-                                    <Edit className="h-4 w-4" />
-                                    Düzenle
+                            <div className="sticky bottom-0 flex gap-3 p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                                <Button variant="outline" className="flex-1 h-11" onClick={() => { onClose(); onEdit(product); }}>
+                                    <Edit className="h-4 w-4" /> Düzenle
                                 </Button>
-                                <Button
-                                    variant="danger"
-                                    className="flex-1"
-                                    onClick={() => { onClose(); onDelete(product); }}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    Sil
+                                <Button variant="danger" className="flex-1 h-11" onClick={() => { onClose(); onDelete(product); }}>
+                                    <Trash2 className="h-4 w-4" /> Sil
                                 </Button>
                             </div>
                         </div>
@@ -314,10 +384,18 @@ interface Product {
     category: string
     brand: string
     price: number
+    original_price: number | null
+    cost_price: number | null
     stock: number
+    min_order_quantity: number
     status: string
     image_url: string | null
     images: string[]
+    description: string | null
+    specifications: Record<string, string> | null
+    warranty_info: string | null
+    delivery_time: string | null
+    created_at: string | null
 }
 
 interface Brand {
@@ -463,10 +541,17 @@ export default function UrunlerPage() {
                     id,
                     sku,
                     name,
+                    description,
                     price,
+                    original_price,
+                    cost_price,
                     stock_quantity,
+                    min_order_quantity,
                     status,
                     images,
+                    specifications,
+                    warranty_info,
+                    delivery_time,
                     category_id,
                     brand_id,
                     categories (name),
@@ -481,13 +566,21 @@ export default function UrunlerPage() {
                 id: p.id,
                 sku: p.sku,
                 name: p.name,
+                description: p.description || null,
                 category: p.categories?.name || "Kategorisiz",
                 brand: p.brands?.name || "Markasız",
                 price: p.price,
+                original_price: p.original_price || null,
+                cost_price: p.cost_price || null,
                 stock: p.stock_quantity,
+                min_order_quantity: p.min_order_quantity || 1,
                 status: p.status === "active" ? "Aktif" : "Pasif",
                 image_url: p.images?.[0] || null,
                 images: p.images || [],
+                specifications: p.specifications || null,
+                warranty_info: p.warranty_info || null,
+                delivery_time: p.delivery_time || null,
+                created_at: p.created_at || null,
             }))
 
             setProducts(mapped)
