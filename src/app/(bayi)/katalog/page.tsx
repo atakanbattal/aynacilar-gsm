@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -12,7 +12,6 @@ import { supabase } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-context"
 import {
     Search,
-    Filter,
     Heart,
     ShoppingCart,
     Plus,
@@ -27,6 +26,9 @@ import {
     ZoomIn,
     List,
     Grid,
+    Tag,
+    Layers,
+    Hash,
 } from "lucide-react"
 
 interface Product {
@@ -62,7 +64,24 @@ function getStockStatus(quantity: number): { label: string; variant: "success" |
     return { label: "Stokta", variant: "success" }
 }
 
-// ─── Lightbox (Fotoğraf Büyütme) Bileşeni ──────────────────────────────────
+// ─── Müzik kategorisi mi kontrol ─────────────────────────────────────────────
+function isMusicCategory(categoryName: string | null | undefined): boolean {
+    if (!categoryName) return false
+    const lower = categoryName.toLowerCase()
+    return (
+        lower.includes("müzik") ||
+        lower.includes("muzik") ||
+        lower.includes("speaker") ||
+        lower.includes("hoparlör") ||
+        lower.includes("hoparlor") ||
+        lower.includes("bluetooth") ||
+        lower.includes("ses sistemi") ||
+        lower.includes("çalar") ||
+        lower.includes("calar")
+    )
+}
+
+// ─── Lightbox (Fotoğraf Büyütme) ─────────────────────────────────────────────
 function Lightbox({
     images,
     initialIndex,
@@ -86,30 +105,28 @@ function Lightbox({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-sm"
             onClick={onClose}
         >
-            {/* Close */}
             <button
                 onClick={onClose}
-                className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+                className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/25 transition-colors"
             >
                 <X className="h-6 w-6" />
             </button>
 
-            {/* Navigation Left */}
             {images.length > 1 && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c - 1 + images.length) % images.length) }}
-                    className="absolute left-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
+                    className="absolute left-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/25 transition-colors"
                 >
                     <ChevronLeft className="h-7 w-7" />
                 </button>
             )}
 
-            {/* Image */}
             <div
-                className="relative w-full max-w-4xl max-h-[90vh] aspect-square mx-16"
+                className="relative flex items-center justify-center mx-20"
+                style={{ width: "min(90vw, 800px)", height: "min(90vh, 800px)" }}
                 onClick={(e) => e.stopPropagation()}
             >
                 <Image
@@ -121,24 +138,22 @@ function Lightbox({
                 />
             </div>
 
-            {/* Navigation Right */}
             {images.length > 1 && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c + 1) % images.length) }}
-                    className="absolute right-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
+                    className="absolute right-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/25 transition-colors"
                 >
                     <ChevronRight className="h-7 w-7" />
                 </button>
             )}
 
-            {/* Thumbnails */}
             {images.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                     {images.map((img, i) => (
                         <button
                             key={i}
                             onClick={(e) => { e.stopPropagation(); setCurrent(i) }}
-                            className={`relative h-12 w-12 overflow-hidden rounded-md border-2 transition-all ${i === current ? "border-white" : "border-white/30"}`}
+                            className={`relative h-14 w-14 overflow-hidden rounded-lg border-2 transition-all ${i === current ? "border-white scale-110" : "border-white/30 opacity-60"}`}
                         >
                             <Image src={img} alt="" fill className="object-cover" />
                         </button>
@@ -146,7 +161,6 @@ function Lightbox({
                 </div>
             )}
 
-            {/* Counter */}
             {images.length > 1 && (
                 <span className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
                     {current + 1} / {images.length}
@@ -156,22 +170,245 @@ function Lightbox({
     )
 }
 
-// ─── Ürün Kartı (Grid) ────────────────────────────────────────────────────
+// ─── Ürün Detay Modalı ────────────────────────────────────────────────────────
+function ProductDetailModal({
+    product,
+    onClose,
+    onAddToCart,
+}: {
+    product: Product
+    onClose: () => void
+    onAddToCart: (p: Product, qty: number) => void
+}) {
+    const [currentImage, setCurrentImage] = useState(0)
+    const [quantity, setQuantity] = useState(1)
+    const [lightboxOpen, setLightboxOpen] = useState(false)
+    const [lightboxIndex, setLightboxIndex] = useState(0)
+    const stockStatus = getStockStatus(product.stock_quantity)
+    const isMusic = isMusicCategory(product.categories?.name)
+
+    const openLightbox = (index: number) => {
+        setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
+
+    return (
+        <>
+            {lightboxOpen && product.images?.length > 0 && (
+                <Lightbox
+                    images={product.images}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxOpen(false)}
+                />
+            )}
+
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={onClose}
+            >
+                <div
+                    className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Close button */}
+                    <button
+                        onClick={onClose}
+                        className="absolute right-4 top-4 z-10 rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors dark:bg-slate-800 dark:text-slate-400"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+
+                    <div className="flex flex-col md:flex-row gap-0">
+                        {/* Sol: Görseller */}
+                        <div className="md:w-1/2 flex-shrink-0">
+                            {/* Ana görsel */}
+                            {product.images && product.images.length > 0 ? (
+                                <div
+                                    className="relative w-full cursor-zoom-in overflow-hidden rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
+                                    style={{ aspectRatio: "1/1" }}
+                                    onClick={() => openLightbox(currentImage)}
+                                >
+                                    <Image
+                                        src={product.images[currentImage]}
+                                        alt={product.name}
+                                        fill
+                                        className="object-cover transition-transform duration-300 hover:scale-105"
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 hover:bg-black/15 hover:opacity-100 transition-all">
+                                        <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
+                                            <ZoomIn className="h-4 w-4" /> Büyüt
+                                        </span>
+                                    </div>
+                                    {product.images.length > 1 && (
+                                        <>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setCurrentImage((c) => (c - 1 + product.images.length) % product.images.length) }}
+                                                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
+                                            >
+                                                <ChevronLeft className="h-5 w-5" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setCurrentImage((c) => (c + 1) % product.images.length) }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-1.5 text-slate-700 hover:bg-white transition-colors shadow"
+                                            >
+                                                <ChevronRight className="h-5 w-5" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <div
+                                    className="flex items-center justify-center rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none bg-slate-100 dark:bg-slate-800"
+                                    style={{ aspectRatio: "1/1" }}
+                                >
+                                    <Package className="h-24 w-24 text-slate-300" />
+                                </div>
+                            )}
+
+                            {/* Küçük görseller */}
+                            {product.images && product.images.length > 1 && (
+                                <div className="flex gap-2 p-3 overflow-x-auto bg-slate-50 dark:bg-slate-800/50">
+                                    {product.images.map((img, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setCurrentImage(i)}
+                                            className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all ${i === currentImage ? "border-[#135bec] scale-105" : "border-transparent opacity-60 hover:opacity-100"}`}
+                                        >
+                                            <Image src={img} alt="" fill className="object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sağ: Bilgiler */}
+                        <div className="flex flex-1 flex-col p-6 gap-4">
+                            {/* Rozetler */}
+                            <div className="flex flex-wrap gap-2">
+                                <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                                {isMusic && (
+                                    <span className="flex items-center gap-1 rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                                        <Music className="h-3 w-3" /> Müzik Çalar
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Ürün adı */}
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-snug">
+                                {product.name}
+                            </h2>
+
+                            {/* Meta */}
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 text-slate-500">
+                                    <Hash className="h-4 w-4 flex-shrink-0" />
+                                    <span className="font-mono">{product.sku}</span>
+                                </div>
+                                {product.brands?.name && (
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                        <Tag className="h-4 w-4 flex-shrink-0" />
+                                        <span>{product.brands.name}</span>
+                                    </div>
+                                )}
+                                {product.categories?.name && (
+                                    <div className="flex items-center gap-2 text-slate-500">
+                                        <Layers className="h-4 w-4 flex-shrink-0" />
+                                        <span>{product.categories.name}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 text-slate-500">
+                                    <Package className="h-4 w-4 flex-shrink-0" />
+                                    <span>Stok: {product.stock_quantity} adet</span>
+                                </div>
+                            </div>
+
+                            {/* Açıklama */}
+                            {product.description && (
+                                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-slate-700 pt-3">
+                                    {product.description}
+                                </p>
+                            )}
+
+                            {/* Fiyat */}
+                            <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                                <div className="flex items-baseline gap-3">
+                                    <span className="text-3xl font-bold text-[#135bec]">
+                                        {formatPrice(product.price)}
+                                    </span>
+                                    {product.original_price && (
+                                        <span className="text-lg text-slate-400 line-through">
+                                            {formatPrice(product.original_price)}
+                                        </span>
+                                    )}
+                                    {product.original_price && product.original_price > product.price && (
+                                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
+                                            %{Math.round((1 - product.price / product.original_price) * 100)} İndirim
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Adet seçici */}
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Adet</label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 transition-colors"
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </button>
+                                    <span className="w-12 text-center text-lg font-bold text-slate-900 dark:text-white">{quantity}</span>
+                                    <button
+                                        onClick={() => setQuantity(quantity + 1)}
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 transition-colors"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </button>
+                                    <span className="ml-2 text-sm text-slate-400">
+                                        Toplam: <strong className="text-[#135bec]">{formatPrice(product.price * quantity)}</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Butonlar */}
+                            <div className="flex gap-3 mt-auto">
+                                <Button
+                                    className="flex-1 h-11"
+                                    onClick={() => onAddToCart(product, quantity)}
+                                    disabled={product.stock_quantity <= 0}
+                                >
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Sepete Ekle
+                                </Button>
+                                <Link href={`/katalog/${product.id}`} className="flex-shrink-0">
+                                    <Button variant="outline" className="h-11 px-4">
+                                        Tam Detay
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
+
+// ─── Ürün Kartı (Grid) ────────────────────────────────────────────────────────
 function ProductCard({
     product,
-    onRequestClick,
+    onDetailClick,
     onImageClick,
 }: {
     product: Product
-    onRequestClick: (p: Product) => void
+    onDetailClick: (p: Product) => void
     onImageClick: (images: string[], index: number) => void
 }) {
     const stockStatus = getStockStatus(product.stock_quantity)
-    const isMusicPlayer = product.categories?.name?.toLowerCase().includes("müzik çalar") ||
-        product.categories?.name?.toLowerCase().includes("muzik calar") ||
-        product.categories?.name?.toLowerCase().includes("speaker") ||
-        product.categories?.name?.toLowerCase().includes("hoparlör") ||
-        product.categories?.name?.toLowerCase().includes("bluetooth")
+    const isMusic = isMusicCategory(product.categories?.name)
 
     return (
         <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:border-[#135bec]/40 hover:shadow-xl dark:border-slate-700 dark:bg-slate-800">
@@ -183,17 +420,18 @@ function ProductCard({
             {/* Badges */}
             <div className="absolute left-3 top-3 z-10 flex flex-col gap-1">
                 <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
-                {isMusicPlayer && (
+                {isMusic && (
                     <span className="flex items-center gap-1 rounded-full bg-purple-600 px-2 py-0.5 text-xs font-semibold text-white shadow">
-                        <Music className="h-3 w-3" /> Müzik Çalar
+                        <Music className="h-3 w-3" /> Müzik
                     </span>
                 )}
             </div>
 
-            {/* Image — büyük, ön planda */}
+            {/* Image — büyük, ön planda, tıklanabilir */}
             <div
-                className="relative w-full overflow-hidden bg-slate-50 dark:bg-slate-900"
+                className="relative w-full cursor-pointer overflow-hidden bg-slate-50 dark:bg-slate-900"
                 style={{ aspectRatio: "1 / 1.05", minHeight: 220 }}
+                onClick={() => product.images?.length > 0 ? onImageClick(product.images, 0) : undefined}
             >
                 {product.images && product.images.length > 0 ? (
                     <>
@@ -204,15 +442,11 @@ function ProductCard({
                             className="object-cover transition-transform duration-500 group-hover:scale-110"
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
-                        {/* Zoom overlay */}
-                        <button
-                            onClick={() => onImageClick(product.images, 0)}
-                            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/20 group-hover:opacity-100"
-                        >
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/20 group-hover:opacity-100">
                             <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
                                 <ZoomIn className="h-4 w-4" /> Büyüt
                             </span>
-                        </button>
+                        </div>
                     </>
                 ) : (
                     <div className="flex h-full w-full items-center justify-center">
@@ -244,15 +478,18 @@ function ProductCard({
                     </div>
 
                     <div className="flex gap-2">
-                        <Link href={`/katalog/${product.id}`} className="flex-1">
-                            <Button variant="outline" size="sm" className="w-full">
-                                Detaylar
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => onDetailClick(product)}
+                        >
+                            İncele
+                        </Button>
                         <Button
                             size="sm"
                             className="flex-1"
-                            onClick={() => onRequestClick(product)}
+                            onClick={() => onDetailClick(product)}
                             disabled={product.stock_quantity <= 0}
                         >
                             + Talep Et
@@ -264,22 +501,18 @@ function ProductCard({
     )
 }
 
-// ─── Ürün Satırı (Liste) ──────────────────────────────────────────────────
+// ─── Ürün Satırı (Liste) ──────────────────────────────────────────────────────
 function ProductRow({
     product,
-    onRequestClick,
+    onDetailClick,
     onImageClick,
 }: {
     product: Product
-    onRequestClick: (p: Product) => void
+    onDetailClick: (p: Product) => void
     onImageClick: (images: string[], index: number) => void
 }) {
     const stockStatus = getStockStatus(product.stock_quantity)
-    const isMusicPlayer = product.categories?.name?.toLowerCase().includes("müzik çalar") ||
-        product.categories?.name?.toLowerCase().includes("muzik calar") ||
-        product.categories?.name?.toLowerCase().includes("speaker") ||
-        product.categories?.name?.toLowerCase().includes("hoparlör") ||
-        product.categories?.name?.toLowerCase().includes("bluetooth")
+    const isMusic = isMusicCategory(product.categories?.name)
 
     return (
         <div className="group flex items-center gap-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-[#135bec]/40 hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
@@ -312,7 +545,7 @@ function ProductRow({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
-                        {isMusicPlayer && (
+                        {isMusic && (
                             <span className="flex items-center gap-1 rounded-full bg-purple-600 px-2 py-0.5 text-xs font-semibold text-white">
                                 <Music className="h-3 w-3" /> Müzik Çalar
                             </span>
@@ -333,12 +566,12 @@ function ProductRow({
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <Link href={`/katalog/${product.id}`}>
-                            <Button variant="outline" size="sm">Detaylar</Button>
-                        </Link>
+                        <Button variant="outline" size="sm" onClick={() => onDetailClick(product)}>
+                            İncele
+                        </Button>
                         <Button
                             size="sm"
-                            onClick={() => onRequestClick(product)}
+                            onClick={() => onDetailClick(product)}
                             disabled={product.stock_quantity <= 0}
                         >
                             + Talep Et
@@ -350,7 +583,7 @@ function ProductRow({
     )
 }
 
-// ─── Ana Sayfa ─────────────────────────────────────────────────────────────
+// ─── Ana Sayfa ─────────────────────────────────────────────────────────────────
 export default function KatalogPage() {
     const router = useRouter()
     const { user } = useAuth()
@@ -362,10 +595,12 @@ export default function KatalogPage() {
     const [cart, setCart] = useState<CartItem[]>([])
     const [isCartOpen, setIsCartOpen] = useState(false)
     const [isSuccessOpen, setIsSuccessOpen] = useState(false)
-    const [requestModalProduct, setRequestModalProduct] = useState<Product | null>(null)
     const [quantity, setQuantity] = useState(1)
     const [dealerId, setDealerId] = useState<string | null>(null)
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
+    // Detay modal
+    const [detailProduct, setDetailProduct] = useState<Product | null>(null)
 
     // Lightbox
     const [lightboxImages, setLightboxImages] = useState<string[]>([])
@@ -380,9 +615,7 @@ export default function KatalogPage() {
 
     useEffect(() => {
         fetchProducts()
-        if (user) {
-            fetchDealerId()
-        }
+        if (user) fetchDealerId()
     }, [user])
 
     const fetchProducts = async () => {
@@ -391,15 +624,8 @@ export default function KatalogPage() {
             const { data, error } = await supabase
                 .from("products")
                 .select(`
-                    id,
-                    sku,
-                    name,
-                    description,
-                    price,
-                    original_price,
-                    stock_quantity,
-                    status,
-                    images,
+                    id, sku, name, description, price, original_price,
+                    stock_quantity, status, images,
                     categories (name),
                     brands (name)
                 `)
@@ -434,10 +660,7 @@ export default function KatalogPage() {
             .select("id")
             .eq("user_id", user?.id)
             .single()
-
-        if (data) {
-            setDealerId(data.id)
-        }
+        if (data) setDealerId(data.id)
     }
 
     const addToCart = (product: Product, qty: number) => {
@@ -451,59 +674,36 @@ export default function KatalogPage() {
         } else {
             setCart([...cart, { product, quantity: qty }])
         }
-        setRequestModalProduct(null)
+        setDetailProduct(null)
         setQuantity(1)
     }
 
-    const removeFromCart = (productId: string) => {
-        setCart(cart.filter(item => item.product.id !== productId))
-    }
+    const removeFromCart = (productId: string) => setCart(cart.filter(item => item.product.id !== productId))
 
     const updateCartQuantity = (productId: string, newQty: number) => {
         if (newQty <= 0) {
             removeFromCart(productId)
         } else {
             setCart(cart.map(item =>
-                item.product.id === productId
-                    ? { ...item, quantity: newQty }
-                    : item
+                item.product.id === productId ? { ...item, quantity: newQty } : item
             ))
         }
     }
 
-    const cartTotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
+    const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
     const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
     const submitRequest = async () => {
-        if (!dealerId) {
-            alert("Bayi bilgisi bulunamadı. Lütfen tekrar giriş yapın.")
-            return
-        }
-
-        if (cart.length === 0) {
-            alert("Sepetiniz boş")
-            return
-        }
-
+        if (!dealerId) { alert("Bayi bilgisi bulunamadı."); return }
+        if (cart.length === 0) { alert("Sepetiniz boş"); return }
         try {
             setSubmitting(true)
-
             const requestNumber = `REQ-${Date.now()}`
-
             const { data: requestData, error: requestError } = await supabase
                 .from("requests")
-                .insert({
-                    request_number: requestNumber,
-                    dealer_id: dealerId,
-                    status: "pending",
-                    total_amount: cartTotal,
-                    notes: null,
-                })
-                .select()
-                .single()
-
+                .insert({ request_number: requestNumber, dealer_id: dealerId, status: "pending", total_amount: cartTotal, notes: null })
+                .select().single()
             if (requestError) throw requestError
-
             const requestItems = cart.map(item => ({
                 request_id: requestData.id,
                 product_id: item.product.id,
@@ -511,32 +711,20 @@ export default function KatalogPage() {
                 unit_price: item.product.price,
                 total_price: item.product.price * item.quantity,
             }))
-
-            const { error: itemsError } = await supabase
-                .from("request_items")
-                .insert(requestItems)
-
+            const { error: itemsError } = await supabase.from("request_items").insert(requestItems)
             if (itemsError) throw itemsError
-
             setIsCartOpen(false)
             setIsSuccessOpen(true)
             setCart([])
         } catch (error: any) {
-            console.error("Error creating request:", error)
-            alert("Talep oluşturulurken hata oluştu: " + error.message)
+            alert("Talep oluşturulurken hata: " + error.message)
         } finally {
             setSubmitting(false)
         }
     }
 
-    // Kategorileri çıkar (müzik çalar filtresi için)
+    // Kategorileri çıkar
     const categories = Array.from(new Set(products.map(p => p.categories?.name).filter(Boolean))) as string[]
-    const isMusicCategory = (cat: string) =>
-        cat.toLowerCase().includes("müzik") ||
-        cat.toLowerCase().includes("muzik") ||
-        cat.toLowerCase().includes("speaker") ||
-        cat.toLowerCase().includes("hoparlör") ||
-        cat.toLowerCase().includes("bluetooth")
 
     const filteredProducts = products.filter(product => {
         const matchesSearch = !searchQuery || (() => {
@@ -544,13 +732,11 @@ export default function KatalogPage() {
             return (
                 product.name.toLowerCase().includes(q) ||
                 product.sku.toLowerCase().includes(q) ||
-                product.brands?.name?.toLowerCase().includes(q) ||
-                product.categories?.name?.toLowerCase().includes(q)
+                (product.brands?.name?.toLowerCase().includes(q) ?? false) ||
+                (product.categories?.name?.toLowerCase().includes(q) ?? false)
             )
         })()
-
         const matchesCategory = !selectedCategory || product.categories?.name === selectedCategory
-
         return matchesSearch && matchesCategory
     })
 
@@ -566,10 +752,15 @@ export default function KatalogPage() {
         <div className="space-y-6">
             {/* Lightbox */}
             {lightboxOpen && (
-                <Lightbox
-                    images={lightboxImages}
-                    initialIndex={lightboxIndex}
-                    onClose={() => setLightboxOpen(false)}
+                <Lightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxOpen(false)} />
+            )}
+
+            {/* Ürün Detay Modalı */}
+            {detailProduct && (
+                <ProductDetailModal
+                    product={detailProduct}
+                    onClose={() => setDetailProduct(null)}
+                    onAddToCart={addToCart}
                 />
             )}
 
@@ -660,12 +851,8 @@ export default function KatalogPage() {
                         <Package className="h-8 w-8 text-slate-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Ürün bulunamadı
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            Arama kriterlerinize uygun ürün yok
-                        </p>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Ürün bulunamadı</h3>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Arama kriterlerinize uygun ürün yok</p>
                     </div>
                 </div>
             ) : viewMode === "grid" ? (
@@ -674,7 +861,7 @@ export default function KatalogPage() {
                         <ProductCard
                             key={product.id}
                             product={product}
-                            onRequestClick={setRequestModalProduct}
+                            onDetailClick={setDetailProduct}
                             onImageClick={openLightbox}
                         />
                     ))}
@@ -685,85 +872,12 @@ export default function KatalogPage() {
                         <ProductRow
                             key={product.id}
                             product={product}
-                            onRequestClick={setRequestModalProduct}
+                            onDetailClick={setDetailProduct}
                             onImageClick={openLightbox}
                         />
                     ))}
                 </div>
             )}
-
-            {/* Request Modal */}
-            <Modal
-                isOpen={requestModalProduct !== null}
-                onClose={() => { setRequestModalProduct(null); setQuantity(1); }}
-                title="Talep Oluştur"
-            >
-                {requestModalProduct && (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                            <div
-                                className="relative h-24 w-24 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
-                                onClick={() =>
-                                    requestModalProduct.images?.length > 0 &&
-                                    openLightbox(requestModalProduct.images, 0)
-                                }
-                            >
-                                {requestModalProduct.images && requestModalProduct.images.length > 0 ? (
-                                    <Image src={requestModalProduct.images[0]} alt={requestModalProduct.name} fill className="object-cover" />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-slate-100">
-                                        <Package className="h-8 w-8 text-slate-300" />
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-900 dark:text-white">{requestModalProduct.name}</h3>
-                                <p className="text-sm text-slate-500">{requestModalProduct.sku}</p>
-                                <p className="text-lg font-bold text-[#135bec]">{formatPrice(requestModalProduct.price)}</p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Adet</label>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700"
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </button>
-                                <Input
-                                    type="number"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                                    className="w-20 text-center"
-                                />
-                                <button
-                                    onClick={() => setQuantity(quantity + 1)}
-                                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-                            <div className="flex justify-between">
-                                <span className="text-slate-500">Toplam Tutar:</span>
-                                <span className="text-xl font-bold text-[#135bec]">{formatPrice(requestModalProduct.price * quantity)}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <Button variant="outline" className="flex-1" onClick={() => { setRequestModalProduct(null); setQuantity(1); }}>İptal</Button>
-                            <Button className="flex-1" onClick={() => addToCart(requestModalProduct, quantity)}>
-                                <ShoppingCart className="h-4 w-4" />
-                                Sepete Ekle
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </Modal>
 
             {/* Cart Modal */}
             <Modal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} title="Talep Sepeti" size="lg">
