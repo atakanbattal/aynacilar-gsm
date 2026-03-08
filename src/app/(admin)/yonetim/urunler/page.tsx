@@ -70,7 +70,7 @@ function ProductForm({
         <div className="space-y-6">
             {/* Görseller */}
             <div className="space-y-3">
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">📷 Ürün Görselleri</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Ürün Görselleri</label>
                 <div className="flex flex-wrap gap-3">
                     {formData.images.map((url, index) => (
                         <div key={index} className="group relative h-24 w-24 overflow-hidden rounded-xl border-2 border-slate-200 dark:border-slate-700">
@@ -93,7 +93,7 @@ function ProductForm({
             {/* 1. Temel Bilgiler */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📋 Temel Bilgiler</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Temel Bilgiler</p>
                 </div>
                 <div className="p-4 grid gap-4 sm:grid-cols-2">
                     <div>
@@ -155,7 +155,7 @@ function ProductForm({
             {/* 2. Fiyat & Stok */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">💰 Fiyat & Stok</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Fiyat & Stok</p>
                 </div>
                 <div className="p-4 grid gap-4 sm:grid-cols-2">
                     <div>
@@ -191,7 +191,7 @@ function ProductForm({
             {/* 3. Açıklama */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📝 Ürün Açıklaması</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ürün Açıklaması</p>
                 </div>
                 <div className="p-4">
                     <textarea
@@ -207,7 +207,7 @@ function ProductForm({
             {/* 4. Teknik Özellikler */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📱 Teknik Özellikler</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Teknik Özellikler</p>
                     <button onClick={onAddSpecRow} type="button"
                         className="flex items-center gap-1 rounded-lg bg-[#135bec] px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
                         + Özellik Ekle
@@ -241,7 +241,7 @@ function ProductForm({
             {/* 5. Garanti & Teslimat */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">🛡️ Garanti & Teslimat</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Garanti & Teslimat</p>
                 </div>
                 <div className="p-4 grid gap-4 sm:grid-cols-2">
                     <div>
@@ -508,7 +508,7 @@ function ProductDetailViewModal({
 
                             {/* Fiyat & Stok Analizi */}
                             <div className="p-6 space-y-4">
-                                <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">💰 Fiyat & Stok Analizi</h4>
+                                <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">Fiyat & Stok Analizi</h4>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                     {/* Toptan Fiyat */}
                                     <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 text-white">
@@ -552,7 +552,7 @@ function ProductDetailViewModal({
                             {/* Açıklama */}
                             {product.description && (
                                 <div className="p-6 space-y-2">
-                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">📝 Ürün Açıklaması</h4>
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ürün Açıklaması</h4>
                                     <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
                                         {product.description}
                                     </p>
@@ -562,7 +562,7 @@ function ProductDetailViewModal({
                             {/* Teknik Özellikler */}
                             {specs && (
                                 <div className="p-6 space-y-3">
-                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">📱 Teknik Özellikler</h4>
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">Teknik Özellikler</h4>
                                     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                                         {specs.map(([key, val], i) => (
                                             <div key={key} className={`flex items-start gap-4 px-4 py-3 text-sm ${i % 2 === 0 ? "bg-slate-50 dark:bg-slate-800/50" : "bg-white dark:bg-slate-900"
@@ -578,11 +578,11 @@ function ProductDetailViewModal({
                             {/* Garanti & Teslimat */}
                             {(product.warranty_info || product.delivery_time) && (
                                 <div className="p-6 space-y-3">
-                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">🛡️ Garanti & Teslimat</h4>
+                                    <h4 className="text-xs font-semibold uppercase tracking-widest text-slate-400">Garanti & Teslimat</h4>
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         {product.warranty_info && (
                                             <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                                                <span className="text-2xl">🛡️</span>
+                                                <span className="text-2xl"></span>
                                                 <div>
                                                     <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Garanti Bilgisi</p>
                                                     <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{product.warranty_info}</p>
@@ -591,7 +591,7 @@ function ProductDetailViewModal({
                                         )}
                                         {product.delivery_time && (
                                             <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-                                                <span className="text-2xl">🚚</span>
+                                                <span className="text-2xl"></span>
                                                 <div>
                                                     <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Teslimat Süresi</p>
                                                     <p className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{product.delivery_time}</p>
