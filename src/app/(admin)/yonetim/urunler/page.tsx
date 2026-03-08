@@ -496,9 +496,16 @@ export default function UrunlerPage() {
         model: "",
         memory: "",
         price: "",
+        original_price: "",
+        cost_price: "",
         stock: "",
+        min_order_quantity: "1",
         status: "active",
         images: [] as string[],
+        description: "",
+        warranty_info: "",
+        delivery_time: "",
+        specifications: {} as Record<string, string>,
     })
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -691,12 +698,19 @@ export default function UrunlerPage() {
                 {
                     name: formData.name || `${formData.model} ${formData.memory}`.trim(),
                     sku: formData.sku || generateSKU(),
+                    description: formData.description || null,
                     price: Number(formData.price),
+                    original_price: formData.original_price ? Number(formData.original_price) : null,
+                    cost_price: formData.cost_price ? Number(formData.cost_price) : null,
                     stock_quantity: Number(formData.stock),
+                    min_order_quantity: Number(formData.min_order_quantity) || 1,
                     status: formData.status,
                     images: formData.images,
                     category_id: formData.category_id || null,
                     brand_id: formData.brand_id || null,
+                    warranty_info: formData.warranty_info || null,
+                    delivery_time: formData.delivery_time || null,
+                    specifications: Object.keys(formData.specifications).length > 0 ? formData.specifications : null,
                 },
             ])
 
@@ -723,12 +737,19 @@ export default function UrunlerPage() {
                 .update({
                     name: formData.name,
                     sku: formData.sku,
+                    description: formData.description || null,
                     price: Number(formData.price),
+                    original_price: formData.original_price ? Number(formData.original_price) : null,
+                    cost_price: formData.cost_price ? Number(formData.cost_price) : null,
                     stock_quantity: Number(formData.stock),
+                    min_order_quantity: Number(formData.min_order_quantity) || 1,
                     status: formData.status,
                     images: formData.images,
                     category_id: formData.category_id || null,
                     brand_id: formData.brand_id || null,
+                    warranty_info: formData.warranty_info || null,
+                    delivery_time: formData.delivery_time || null,
+                    specifications: Object.keys(formData.specifications).length > 0 ? formData.specifications : null,
                 })
                 .eq("id", selectedProduct.id)
 
@@ -776,9 +797,16 @@ export default function UrunlerPage() {
             model: "",
             memory: "",
             price: "",
+            original_price: "",
+            cost_price: "",
             stock: "",
+            min_order_quantity: "1",
             status: "active",
             images: [],
+            description: "",
+            warranty_info: "",
+            delivery_time: "",
+            specifications: {},
         })
     }
 
@@ -792,24 +820,48 @@ export default function UrunlerPage() {
             model: "",
             memory: "",
             price: String(product.price),
+            original_price: product.original_price ? String(product.original_price) : "",
+            cost_price: product.cost_price ? String(product.cost_price) : "",
             stock: String(product.stock),
+            min_order_quantity: String(product.min_order_quantity || 1),
             status: product.status === "Aktif" ? "active" : "inactive",
             images: product.images || [],
+            description: product.description || "",
+            warranty_info: product.warranty_info || "",
+            delivery_time: product.delivery_time || "",
+            specifications: product.specifications || {},
         })
         setIsEditModalOpen(true)
     }
 
+    // Helper for specification key-value pairs
+    const addSpecRow = () => {
+        const key = prompt("Özellik adı (örn: RAM, Ekran, Renk):")
+        if (!key) return
+        setFormData(prev => ({ ...prev, specifications: { ...prev.specifications, [key]: "" } }))
+    }
+    const updateSpecValue = (key: string, val: string) => {
+        setFormData(prev => ({ ...prev, specifications: { ...prev.specifications, [key]: val } }))
+    }
+    const removeSpecRow = (key: string) => {
+        setFormData(prev => {
+            const updated = { ...prev.specifications }
+            delete updated[key]
+            return { ...prev, specifications: updated }
+        })
+    }
+
     // Form component for Add/Edit
     const ProductForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-        <div className="space-y-4">
+        <div className="space-y-6">
             {/* Image Upload Section */}
             <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Ürün Resimleri
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    📷 Ürün Görselleri
                 </label>
                 <div className="flex flex-wrap gap-3">
                     {formData.images.map((url, index) => (
-                        <div key={index} className="group relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div key={index} className="group relative h-24 w-24 overflow-hidden rounded-xl border-2 border-slate-200 dark:border-slate-700">
                             <Image src={url} alt={`Product ${index + 1}`} fill className="object-cover" />
                             <button
                                 onClick={() => removeImage(index)}
@@ -822,7 +874,7 @@ export default function UrunlerPage() {
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
-                        className="flex h-24 w-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 dark:bg-slate-800"
+                        className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700 dark:bg-slate-800"
                     >
                         {uploading ? (
                             <Loader2 className="h-6 w-6 animate-spin" />
@@ -834,156 +886,194 @@ export default function UrunlerPage() {
                         )}
                     </button>
                 </div>
-                <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                />
+                <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
                 <p className="text-xs text-slate-500">Birden fazla resim seçebilirsiniz</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                {/* Brand Select */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Marka *</label>
-                    <select
-                        value={formData.brand_id}
-                        onChange={(e) => handleBrandChange(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option value="">Marka Seçin</option>
-                        {brands.map(brand => (
-                            <option key={brand.id} value={brand.id}>{brand.name}</option>
-                        ))}
-                    </select>
+            {/* 1. Temel Bilgiler */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📋 Temel Bilgiler</p>
                 </div>
-
-                {/* Category Select */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kategori *</label>
-                    <select
-                        value={formData.category_id}
-                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option value="">Kategori Seçin</option>
-                        {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Model Select */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Model *</label>
-                    <select
-                        value={formData.model}
-                        onChange={(e) => handleModelChange(e.target.value)}
-                        disabled={!formData.brand_id}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option value="">Model Seçin</option>
-                        {getModelsForBrand().map(model => (
-                            <option key={model} value={model}>{model}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Memory Select */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Hafıza/Depolama</label>
-                    <select
-                        value={formData.memory}
-                        onChange={(e) => handleMemoryChange(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option value="">Hafıza Seçin (Opsiyonel)</option>
-                        {memoryOptions.map(mem => (
-                            <option key={mem} value={mem}>{mem}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Product Name (Auto-generated or custom) */}
-                <div className="sm:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün Adı</label>
-                    <Input
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Otomatik oluşturulur veya özel girin"
-                    />
-                    <p className="mt-1 text-xs text-slate-500">Model ve hafıza seçildiğinde otomatik oluşturulur</p>
-                </div>
-
-                {/* SKU */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">SKU</label>
-                    <div className="flex gap-2">
-                        <Input
-                            value={formData.sku}
-                            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                            placeholder="Otomatik oluşturulur"
-                            className="flex-1"
-                        />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setFormData({ ...formData, sku: generateSKU() })}
-                        >
-                            Oluştur
-                        </Button>
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    {/* Brand */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Marka *</label>
+                        <select value={formData.brand_id} onChange={e => handleBrandChange(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Marka Seçin</option>
+                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                    </div>
+                    {/* Category */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kategori *</label>
+                        <select value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Kategori Seçin</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    {/* Model */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Model *</label>
+                        <select value={formData.model} onChange={e => handleModelChange(e.target.value)}
+                            disabled={!formData.brand_id}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Model Seçin</option>
+                            {getModelsForBrand().map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    </div>
+                    {/* Memory */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Hafıza/Depolama</label>
+                        <select value={formData.memory} onChange={e => handleMemoryChange(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="">Hafıza Seçin (Opsiyonel)</option>
+                            {memoryOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    </div>
+                    {/* Product Name */}
+                    <div className="sm:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün Adı</label>
+                        <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Otomatik oluşturulur veya özel girin" />
+                        <p className="mt-1 text-xs text-slate-500">Model ve hafıza seçildiğinde otomatik oluşturulur</p>
+                    </div>
+                    {/* SKU */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">SKU</label>
+                        <div className="flex gap-2">
+                            <Input value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Otomatik oluşturulur" className="flex-1" />
+                            <Button type="button" variant="outline" size="sm" onClick={() => setFormData({ ...formData, sku: generateSKU() })}>Oluştur</Button>
+                        </div>
+                    </div>
+                    {/* Status */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Durum</label>
+                        <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                {/* Status */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Durum</label>
-                    <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option value="active">Aktif</option>
-                        <option value="inactive">Pasif</option>
-                    </select>
+            {/* 2. Fiyat & Stok */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">💰 Fiyat & Stok</p>
                 </div>
-
-                {/* Price */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Fiyat (₺) *</label>
-                    <input
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="64999"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                    />
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    {/* Toptan Fiyat */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Toptan Fiyat (₺) *</label>
+                        <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} placeholder="64999"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    {/* Piyasa Fiyatı */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Piyasa Fiyatı (₺) <span className="text-slate-400 font-normal">(opsiyonel)</span></label>
+                        <input type="number" value={formData.original_price} onChange={e => setFormData({ ...formData, original_price: e.target.value })} placeholder="79999"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                        <p className="mt-1 text-xs text-slate-400">Üstü çizili piyasa fiyatı olarak gösterilir</p>
+                    </div>
+                    {/* Maliyet */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Maliyet Fiyatı (₺) <span className="text-slate-400 font-normal">(gizli)</span></label>
+                        <input type="number" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} placeholder="55000"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                        <p className="mt-1 text-xs text-slate-400">Kâr marjı hesabı için kullanılır, bayilere gösterilmez</p>
+                    </div>
+                    {/* Stok */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Stok Miktarı *</label>
+                        <input type="number" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} placeholder="100"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    {/* Min Sipariş */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Min. Sipariş Adedi</label>
+                        <input type="number" value={formData.min_order_quantity} onChange={e => setFormData({ ...formData, min_order_quantity: e.target.value })} min="1" placeholder="1"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
                 </div>
+            </div>
 
-                {/* Stock */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Stok Miktarı *</label>
-                    <input
-                        type="number"
-                        value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        placeholder="100"
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            {/* 3. Açıklama */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📝 Ürün Açıklaması</p>
+                </div>
+                <div className="p-4">
+                    <textarea
+                        value={formData.description}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Ürün hakkında detaylı açıklama yazın: özellikler, kullanım alanları, renkler, dikkat edilmesi gereken hususlar..."
+                        rows={5}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white resize-none"
                     />
                 </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => isEdit ? setIsEditModalOpen(false) : setIsAddModalOpen(false)}>
-                    İptal
-                </Button>
+            {/* 4. Teknik Özellikler */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">📱 Teknik Özellikler</p>
+                    <button onClick={addSpecRow} type="button"
+                        className="flex items-center gap-1 rounded-lg bg-[#135bec] px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                        + Özellik Ekle
+                    </button>
+                </div>
+                <div className="p-4 space-y-2">
+                    {Object.entries(formData.specifications).length === 0 ? (
+                        <p className="text-center text-sm text-slate-400 py-4">
+                            Henüz özellik eklenmedi. "+ Özellik Ekle" ile ekleyin.<br />
+                            <span className="text-xs">Örn: İşlemci, RAM, Ekran Boyutu, Kamera, Batarya, Renk, Ağırlık...</span>
+                        </p>
+                    ) : (
+                        Object.entries(formData.specifications).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2">
+                                <span className="w-36 flex-shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">{key}</span>
+                                <input
+                                    value={val}
+                                    onChange={e => updateSpecValue(key, e.target.value)}
+                                    placeholder={`${key} değerini girin`}
+                                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-[#135bec] focus:outline-none"
+                                />
+                                <button onClick={() => removeSpecRow(key)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* 5. Garanti & Teslimat */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">🛡️ Garanti & Teslimat</p>
+                </div>
+                <div className="p-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Garanti Bilgisi</label>
+                        <input type="text" value={formData.warranty_info} onChange={e => setFormData({ ...formData, warranty_info: e.target.value })} placeholder="Örn: 2 Yıl Türkiye Garantisi"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Teslimat Süresi</label>
+                        <input type="text" value={formData.delivery_time} onChange={e => setFormData({ ...formData, delivery_time: e.target.value })} placeholder="Örn: 1-3 İş Günü"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-[#135bec] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => isEdit ? setIsEditModalOpen(false) : setIsAddModalOpen(false)}>İptal</Button>
                 <Button onClick={isEdit ? handleEdit : handleAdd} disabled={loading || uploading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {isEdit ? "Kaydet" : "Ürün Ekle"}
+                    {isEdit ? "Değişiklikleri Kaydet" : "Ürünü Ekle"}
                 </Button>
             </div>
         </div>
