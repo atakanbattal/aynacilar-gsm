@@ -104,7 +104,7 @@ export default function GirisPage() {
                         <Smartphone className="h-8 w-8" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                        Aynacılar GSM
+                        Teknomarket Aynacılar GSM
                     </h1>
                     <p className="mt-1 text-slate-500 dark:text-slate-400">
                         Bayi Portalı Girişi
@@ -220,7 +220,7 @@ export default function GirisPage() {
                             <span className="inline-flex items-center gap-1">
                                 🔒 <strong>Yalnızca Yetkili Erişim.</strong>
                             </span>{" "}
-                            Bu portal yalnızca yetkili Aynacılar GSM bayilerine açıktır.
+                            Bu portal yalnızca yetkili Teknomarket Aynacılar GSM bayilerine açıktır.
                             Yetkisiz erişim girişimleri takip edilmektedir.
                         </p>
                     </div>

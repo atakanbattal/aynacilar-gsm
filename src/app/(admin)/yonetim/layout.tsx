@@ -76,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                     <div className="flex flex-col">
                         <h1 className="text-base font-bold leading-tight text-slate-900 dark:text-white">
-                            Aynacılar GSM
+                            Teknomarket Aynacılar GSM
                         </h1>
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                             Admin Portalı

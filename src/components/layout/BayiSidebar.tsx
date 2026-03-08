@@ -58,7 +58,7 @@ export function BayiSidebar() {
                 </div>
                 <div>
                     <h1 className="text-lg font-bold leading-tight text-slate-900 dark:text-white">
-                        Aynacılar GSM
+                        Teknomarket Aynacılar GSM
                     </h1>
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Bayi Portalı

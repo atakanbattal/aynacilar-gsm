@@ -289,7 +289,7 @@ export default function PanelPage() {
 
             {/* Footer */}
             <footer className="pb-4 text-center text-sm text-slate-400 dark:text-slate-600">
-                © 2024 Aynacılar GSM Toptan Portal. Tüm hakları saklıdır.
+                © 2024 Teknomarket Aynacılar GSM Toptan Portal. Tüm hakları saklıdır.
             </footer>
         </div>
     )

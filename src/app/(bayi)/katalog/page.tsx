@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -21,6 +21,12 @@ import {
     Check,
     Loader2,
     Package,
+    Music,
+    ChevronLeft,
+    ChevronRight,
+    ZoomIn,
+    List,
+    Grid,
 } from "lucide-react"
 
 interface Product {
@@ -56,6 +62,295 @@ function getStockStatus(quantity: number): { label: string; variant: "success" |
     return { label: "Stokta", variant: "success" }
 }
 
+// ─── Lightbox (Fotoğraf Büyütme) Bileşeni ──────────────────────────────────
+function Lightbox({
+    images,
+    initialIndex,
+    onClose,
+}: {
+    images: string[]
+    initialIndex: number
+    onClose: () => void
+}) {
+    const [current, setCurrent] = useState(initialIndex)
+
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose()
+            if (e.key === "ArrowRight") setCurrent((c) => (c + 1) % images.length)
+            if (e.key === "ArrowLeft") setCurrent((c) => (c - 1 + images.length) % images.length)
+        }
+        window.addEventListener("keydown", handleKey)
+        return () => window.removeEventListener("keydown", handleKey)
+    }, [images.length, onClose])
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            {/* Close */}
+            <button
+                onClick={onClose}
+                className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+            >
+                <X className="h-6 w-6" />
+            </button>
+
+            {/* Navigation Left */}
+            {images.length > 1 && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c - 1 + images.length) % images.length) }}
+                    className="absolute left-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
+                >
+                    <ChevronLeft className="h-7 w-7" />
+                </button>
+            )}
+
+            {/* Image */}
+            <div
+                className="relative w-full max-w-4xl max-h-[90vh] aspect-square mx-16"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <Image
+                    src={images[current]}
+                    alt="Ürün fotoğrafı"
+                    fill
+                    className="object-contain"
+                    sizes="90vw"
+                />
+            </div>
+
+            {/* Navigation Right */}
+            {images.length > 1 && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c + 1) % images.length) }}
+                    className="absolute right-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
+                >
+                    <ChevronRight className="h-7 w-7" />
+                </button>
+            )}
+
+            {/* Thumbnails */}
+            {images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {images.map((img, i) => (
+                        <button
+                            key={i}
+                            onClick={(e) => { e.stopPropagation(); setCurrent(i) }}
+                            className={`relative h-12 w-12 overflow-hidden rounded-md border-2 transition-all ${i === current ? "border-white" : "border-white/30"}`}
+                        >
+                            <Image src={img} alt="" fill className="object-cover" />
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Counter */}
+            {images.length > 1 && (
+                <span className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white">
+                    {current + 1} / {images.length}
+                </span>
+            )}
+        </div>
+    )
+}
+
+// ─── Ürün Kartı (Grid) ────────────────────────────────────────────────────
+function ProductCard({
+    product,
+    onRequestClick,
+    onImageClick,
+}: {
+    product: Product
+    onRequestClick: (p: Product) => void
+    onImageClick: (images: string[], index: number) => void
+}) {
+    const stockStatus = getStockStatus(product.stock_quantity)
+    const isMusicPlayer = product.categories?.name?.toLowerCase().includes("müzik çalar") ||
+        product.categories?.name?.toLowerCase().includes("muzik calar") ||
+        product.categories?.name?.toLowerCase().includes("speaker") ||
+        product.categories?.name?.toLowerCase().includes("hoparlör") ||
+        product.categories?.name?.toLowerCase().includes("bluetooth")
+
+    return (
+        <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:border-[#135bec]/40 hover:shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            {/* Wishlist */}
+            <button className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100 dark:bg-slate-900/90">
+                <Heart className="h-4 w-4" />
+            </button>
+
+            {/* Badges */}
+            <div className="absolute left-3 top-3 z-10 flex flex-col gap-1">
+                <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                {isMusicPlayer && (
+                    <span className="flex items-center gap-1 rounded-full bg-purple-600 px-2 py-0.5 text-xs font-semibold text-white shadow">
+                        <Music className="h-3 w-3" /> Müzik Çalar
+                    </span>
+                )}
+            </div>
+
+            {/* Image — büyük, ön planda */}
+            <div
+                className="relative w-full overflow-hidden bg-slate-50 dark:bg-slate-900"
+                style={{ aspectRatio: "1 / 1.05", minHeight: 220 }}
+            >
+                {product.images && product.images.length > 0 ? (
+                    <>
+                        <Image
+                            src={product.images[0]}
+                            alt={product.name}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        />
+                        {/* Zoom overlay */}
+                        <button
+                            onClick={() => onImageClick(product.images, 0)}
+                            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/20 group-hover:opacity-100"
+                        >
+                            <span className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
+                                <ZoomIn className="h-4 w-4" /> Büyüt
+                            </span>
+                        </button>
+                    </>
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <Package className="h-16 w-16 text-slate-300" />
+                    </div>
+                )}
+            </div>
+
+            {/* Content */}
+            <div className="flex flex-1 flex-col p-4">
+                <p className="mb-1 font-mono text-xs text-slate-400">{product.sku}</p>
+                <h3 className="mb-1 line-clamp-2 text-sm font-bold text-slate-900 leading-snug dark:text-white">
+                    {product.name}
+                </h3>
+                <p className="mb-3 text-xs text-slate-500">
+                    {product.brands?.name || "Marka Yok"} • {product.categories?.name || "Kategori Yok"}
+                </p>
+
+                <div className="mt-auto">
+                    <div className="mb-3 flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-[#135bec]">
+                            {formatPrice(product.price)}
+                        </span>
+                        {product.original_price && (
+                            <span className="text-sm text-slate-400 line-through">
+                                {formatPrice(product.original_price)}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Link href={`/katalog/${product.id}`} className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full">
+                                Detaylar
+                            </Button>
+                        </Link>
+                        <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => onRequestClick(product)}
+                            disabled={product.stock_quantity <= 0}
+                        >
+                            + Talep Et
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ─── Ürün Satırı (Liste) ──────────────────────────────────────────────────
+function ProductRow({
+    product,
+    onRequestClick,
+    onImageClick,
+}: {
+    product: Product
+    onRequestClick: (p: Product) => void
+    onImageClick: (images: string[], index: number) => void
+}) {
+    const stockStatus = getStockStatus(product.stock_quantity)
+    const isMusicPlayer = product.categories?.name?.toLowerCase().includes("müzik çalar") ||
+        product.categories?.name?.toLowerCase().includes("muzik calar") ||
+        product.categories?.name?.toLowerCase().includes("speaker") ||
+        product.categories?.name?.toLowerCase().includes("hoparlör") ||
+        product.categories?.name?.toLowerCase().includes("bluetooth")
+
+    return (
+        <div className="group flex items-center gap-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-[#135bec]/40 hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+            {/* Large image */}
+            <div
+                className="relative h-28 w-28 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900"
+                onClick={() => product.images?.length > 0 && onImageClick(product.images, 0)}
+            >
+                {product.images && product.images.length > 0 ? (
+                    <>
+                        <Image
+                            src={product.images[0]}
+                            alt={product.name}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/20 group-hover:opacity-100">
+                            <ZoomIn className="h-6 w-6 text-white drop-shadow" />
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <Package className="h-10 w-10 text-slate-300" />
+                    </div>
+                )}
+            </div>
+
+            {/* Info */}
+            <div className="flex flex-1 items-center gap-4 min-w-0">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                        {isMusicPlayer && (
+                            <span className="flex items-center gap-1 rounded-full bg-purple-600 px-2 py-0.5 text-xs font-semibold text-white">
+                                <Music className="h-3 w-3" /> Müzik Çalar
+                            </span>
+                        )}
+                    </div>
+                    <h3 className="font-bold text-slate-900 dark:text-white leading-snug truncate">{product.name}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5 font-mono">{product.sku}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                        {product.brands?.name || "Marka Yok"} · {product.categories?.name || "Kategori Yok"}
+                    </p>
+                </div>
+
+                <div className="flex flex-col items-end gap-3 flex-shrink-0">
+                    <div className="text-right">
+                        <span className="text-xl font-bold text-[#135bec]">{formatPrice(product.price)}</span>
+                        {product.original_price && (
+                            <p className="text-xs text-slate-400 line-through">{formatPrice(product.original_price)}</p>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <Link href={`/katalog/${product.id}`}>
+                            <Button variant="outline" size="sm">Detaylar</Button>
+                        </Link>
+                        <Button
+                            size="sm"
+                            onClick={() => onRequestClick(product)}
+                            disabled={product.stock_quantity <= 0}
+                        >
+                            + Talep Et
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ─── Ana Sayfa ─────────────────────────────────────────────────────────────
 export default function KatalogPage() {
     const router = useRouter()
     const { user } = useAuth()
@@ -70,6 +365,18 @@ export default function KatalogPage() {
     const [requestModalProduct, setRequestModalProduct] = useState<Product | null>(null)
     const [quantity, setQuantity] = useState(1)
     const [dealerId, setDealerId] = useState<string | null>(null)
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
+    // Lightbox
+    const [lightboxImages, setLightboxImages] = useState<string[]>([])
+    const [lightboxIndex, setLightboxIndex] = useState(0)
+    const [lightboxOpen, setLightboxOpen] = useState(false)
+
+    const openLightbox = (images: string[], index: number) => {
+        setLightboxImages(images)
+        setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
 
     useEffect(() => {
         fetchProducts()
@@ -100,7 +407,6 @@ export default function KatalogPage() {
                 .order("created_at", { ascending: false })
 
             if (error) throw error
-            // Transform nested data from Supabase (converts array relations to single objects)
             const mappedData = (data || []).map((p: any) => ({
                 id: p.id,
                 sku: p.sku,
@@ -182,10 +488,8 @@ export default function KatalogPage() {
         try {
             setSubmitting(true)
 
-            // Generate request number
             const requestNumber = `REQ-${Date.now()}`
 
-            // Create request
             const { data: requestData, error: requestError } = await supabase
                 .from("requests")
                 .insert({
@@ -200,7 +504,6 @@ export default function KatalogPage() {
 
             if (requestError) throw requestError
 
-            // Create request items
             const requestItems = cart.map(item => ({
                 request_id: requestData.id,
                 product_id: item.product.id,
@@ -226,22 +529,30 @@ export default function KatalogPage() {
         }
     }
 
-    const filteredProducts = products.filter(product => {
-        if (!searchQuery) return true
-        const query = searchQuery.toLowerCase()
-        return (
-            product.name.toLowerCase().includes(query) ||
-            product.sku.toLowerCase().includes(query) ||
-            product.brands?.name?.toLowerCase().includes(query)
-        )
-    })
+    // Kategorileri çıkar (müzik çalar filtresi için)
+    const categories = Array.from(new Set(products.map(p => p.categories?.name).filter(Boolean))) as string[]
+    const isMusicCategory = (cat: string) =>
+        cat.toLowerCase().includes("müzik") ||
+        cat.toLowerCase().includes("muzik") ||
+        cat.toLowerCase().includes("speaker") ||
+        cat.toLowerCase().includes("hoparlör") ||
+        cat.toLowerCase().includes("bluetooth")
 
-    const getProductImage = (product: Product) => {
-        if (product.images && product.images.length > 0) {
-            return product.images[0]
-        }
-        return "/placeholder-product.png"
-    }
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = !searchQuery || (() => {
+            const q = searchQuery.toLowerCase()
+            return (
+                product.name.toLowerCase().includes(q) ||
+                product.sku.toLowerCase().includes(q) ||
+                product.brands?.name?.toLowerCase().includes(q) ||
+                product.categories?.name?.toLowerCase().includes(q)
+            )
+        })()
+
+        const matchesCategory = !selectedCategory || product.categories?.name === selectedCategory
+
+        return matchesSearch && matchesCategory
+    })
 
     if (loading) {
         return (
@@ -253,6 +564,15 @@ export default function KatalogPage() {
 
     return (
         <div className="space-y-6">
+            {/* Lightbox */}
+            {lightboxOpen && (
+                <Lightbox
+                    images={lightboxImages}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxOpen(false)}
+                />
+            )}
+
             {/* Page Header */}
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
@@ -265,12 +585,21 @@ export default function KatalogPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500">Sırala:</span>
-                    <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-[#135bec] focus:outline-none focus:ring-2 focus:ring-[#135bec]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        <option>En Yeni Gelenler</option>
-                        <option>Fiyat: Düşükten Yükseğe</option>
-                        <option>Fiyat: Yüksekten Düşüğe</option>
-                    </select>
+                    {/* View mode toggle */}
+                    <div className="flex rounded-lg border border-slate-200 overflow-hidden dark:border-slate-700">
+                        <button
+                            onClick={() => setViewMode("grid")}
+                            className={`px-3 py-2 transition-colors ${viewMode === "grid" ? "bg-[#135bec] text-white" : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-400"}`}
+                        >
+                            <Grid className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={() => setViewMode("list")}
+                            className={`px-3 py-2 transition-colors ${viewMode === "list" ? "bg-[#135bec] text-white" : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-400"}`}
+                        >
+                            <List className="h-4 w-4" />
+                        </button>
+                    </div>
 
                     {/* Cart Button */}
                     <Button onClick={() => setIsCartOpen(true)} className="relative">
@@ -291,20 +620,40 @@ export default function KatalogPage() {
                     <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     <Input
                         type="text"
-                        placeholder="SKU, ürün adı veya marka ile ara..."
+                        placeholder="SKU, ürün adı, marka veya kategori ile ara..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10"
                     />
                 </div>
 
-                <button className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:hover:border-slate-600">
-                    <Filter className="h-4 w-4" />
-                    Filtrele
-                </button>
+                {/* Category filter chips */}
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setSelectedCategory("")}
+                        className={`rounded-full px-3 py-1 text-sm font-medium transition-colors border ${!selectedCategory ? "bg-[#135bec] text-white border-[#135bec]" : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700"}`}
+                    >
+                        Tümü
+                    </button>
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+                            className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors border ${selectedCategory === cat ? "bg-[#135bec] text-white border-[#135bec]" : "border-slate-200 text-slate-500 hover:border-[#135bec] hover:text-[#135bec] dark:border-slate-700"}`}
+                        >
+                            {isMusicCategory(cat) && <Music className="h-3 w-3" />}
+                            {cat}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* Product Grid */}
+            {/* Results count */}
+            <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-900 dark:text-white">{filteredProducts.length}</span> ürün listeleniyor
+            </p>
+
+            {/* Product Grid / List */}
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
@@ -319,84 +668,27 @@ export default function KatalogPage() {
                         </p>
                     </div>
                 </div>
+            ) : viewMode === "grid" ? (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {filteredProducts.map((product) => (
+                        <ProductCard
+                            key={product.id}
+                            product={product}
+                            onRequestClick={setRequestModalProduct}
+                            onImageClick={openLightbox}
+                        />
+                    ))}
+                </div>
             ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {filteredProducts.map((product) => {
-                        const stockStatus = getStockStatus(product.stock_quantity)
-                        return (
-                            <div
-                                key={product.id}
-                                className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:border-[#135bec]/30 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800"
-                            >
-                                {/* Wishlist */}
-                                <button className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100">
-                                    <Heart className="h-4 w-4" />
-                                </button>
-
-                                {/* Status Badge */}
-                                <div className="absolute left-3 top-3 z-10">
-                                    <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
-                                </div>
-
-                                {/* Image */}
-                                <div className="relative aspect-square overflow-hidden bg-slate-50 dark:bg-slate-900">
-                                    {product.images && product.images.length > 0 ? (
-                                        <Image
-                                            src={product.images[0]}
-                                            alt={product.name}
-                                            fill
-                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                        />
-                                    ) : (
-                                        <div className="flex h-full w-full items-center justify-center">
-                                            <Package className="h-12 w-12 text-slate-300" />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex flex-1 flex-col p-4">
-                                    <p className="mb-1 font-mono text-xs text-slate-400">{product.sku}</p>
-                                    <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900 transition-colors hover:text-[#135bec] dark:text-white">
-                                        {product.name}
-                                    </h3>
-                                    <p className="mb-3 text-xs text-slate-500">
-                                        {product.brands?.name || "Marka Yok"} • {product.categories?.name || "Kategori Yok"}
-                                    </p>
-
-                                    <div className="mt-auto flex items-end justify-between">
-                                        <div>
-                                            <span className="text-lg font-bold text-[#135bec]">
-                                                {formatPrice(product.price)}
-                                            </span>
-                                            {product.original_price && (
-                                                <span className="ml-2 text-sm text-slate-400 line-through">
-                                                    {formatPrice(product.original_price)}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="mt-3 flex gap-2">
-                                        <Link href={`/katalog/${product.id}`} className="flex-1">
-                                            <Button variant="outline" size="sm" className="w-full">
-                                                Detaylar
-                                            </Button>
-                                        </Link>
-                                        <Button
-                                            size="sm"
-                                            className="flex-1"
-                                            onClick={() => setRequestModalProduct(product)}
-                                            disabled={product.stock_quantity <= 0}
-                                        >
-                                            + Talep Et
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
+                <div className="flex flex-col gap-3">
+                    {filteredProducts.map((product) => (
+                        <ProductRow
+                            key={product.id}
+                            product={product}
+                            onRequestClick={setRequestModalProduct}
+                            onImageClick={openLightbox}
+                        />
+                    ))}
                 </div>
             )}
 
@@ -409,7 +701,13 @@ export default function KatalogPage() {
                 {requestModalProduct && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                            <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div
+                                className="relative h-24 w-24 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+                                onClick={() =>
+                                    requestModalProduct.images?.length > 0 &&
+                                    openLightbox(requestModalProduct.images, 0)
+                                }
+                            >
                                 {requestModalProduct.images && requestModalProduct.images.length > 0 ? (
                                     <Image src={requestModalProduct.images[0]} alt={requestModalProduct.name} fill className="object-cover" />
                                 ) : (
@@ -478,7 +776,10 @@ export default function KatalogPage() {
                     <div className="space-y-4">
                         {cart.map((item) => (
                             <div key={item.product.id} className="flex items-center gap-4 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                                <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                                <div
+                                    className="relative h-16 w-16 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700"
+                                    onClick={() => item.product.images?.length > 0 && openLightbox(item.product.images, 0)}
+                                >
                                     {item.product.images && item.product.images.length > 0 ? (
                                         <Image src={item.product.images[0]} alt={item.product.name} fill className="object-cover" />
                                     ) : (

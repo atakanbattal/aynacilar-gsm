@@ -10,8 +10,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Aynacılar GSM - Bayi Portalı",
-  description: "Aynacılar GSM B2B Bayi Yönetim Sistemi",
+  title: "Teknomarket Aynacılar GSM - Bayi Portalı",
+  description: "Teknomarket Aynacılar GSM B2B Bayi Yönetim Sistemi",
 }
 
 export default function RootLayout({
