@@ -36,6 +36,18 @@ interface Dealer {
     total_orders: number // placeholder or calculated
 }
 
+const INITIAL_FORM_DATA = {
+    name: "",
+    contact: "",
+    email: "",
+    phone: "",
+    city: "İstanbul",
+    address: "",
+    password: "",
+    confirmPassword: "",
+    status: "active",
+}
+
 function formatPrice(price: number): string {
     return new Intl.NumberFormat("tr-TR", {
         style: "currency",
@@ -44,25 +56,35 @@ function formatPrice(price: number): string {
     }).format(price)
 }
 
+function getErrorMessage(error: unknown, fallbackMessage: string) {
+    if (error instanceof Error && error.message) {
+        return error.message
+    }
+
+    if (typeof error === "string" && error.trim()) {
+        return error
+    }
+
+    return fallbackMessage
+}
+
+function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 export default function BayilerPage() {
     const [dealers, setDealers] = useState<Dealer[]>([])
     const [loading, setLoading] = useState(true)
+    const [isCreatingDealer, setIsCreatingDealer] = useState(false)
+    const [isDeletingDealer, setIsDeletingDealer] = useState(false)
+    const [createDealerError, setCreateDealerError] = useState<string | null>(null)
+    const [deleteDealerError, setDeleteDealerError] = useState<string | null>(null)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isViewModalOpen, setIsViewModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null)
-    const [formData, setFormData] = useState({
-        name: "", // company_name
-        contact: "", // full_name
-        email: "",
-        phone: "",
-        city: "İstanbul",
-        address: "",
-        password: "",
-        confirmPassword: "",
-        status: "active",
-    })
+    const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
     useEffect(() => {
         fetchDealers()
@@ -136,24 +158,36 @@ export default function BayilerPage() {
     }
 
     const handleAdd = async () => {
+        if (isCreatingDealer) return
+
+        const trimmedName = formData.name.trim()
+        const trimmedContact = formData.contact.trim()
+        const trimmedEmail = formData.email.trim()
+
         // Validate form
-        if (!formData.name || !formData.contact || !formData.email || !formData.password) {
-            alert("Lütfen zorunlu alanları doldurun (Şirket Adı, Yetkili Kişi, E-posta, Şifre)")
+        if (!trimmedName || !trimmedContact || !trimmedEmail || !formData.password) {
+            setCreateDealerError("Lütfen zorunlu alanları doldurun (Şirket Adı, Yetkili Kişi, E-posta, Şifre).")
+            return
+        }
+
+        if (!isValidEmail(trimmedEmail)) {
+            setCreateDealerError("Lütfen geçerli bir e-posta adresi girin.")
             return
         }
 
         if (formData.password !== formData.confirmPassword) {
-            alert("Şifreler eşleşmiyor")
+            setCreateDealerError("Şifreler eşleşmiyor.")
             return
         }
 
         if (formData.password.length < 6) {
-            alert("Şifre en az 6 karakter olmalıdır")
+            setCreateDealerError("Şifre en az 6 karakter olmalıdır.")
             return
         }
 
         try {
-            setLoading(true)
+            setCreateDealerError(null)
+            setIsCreatingDealer(true)
 
             const response = await fetch('/api/dealers', {
                 method: 'POST',
@@ -161,42 +195,43 @@ export default function BayilerPage() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: formData.email,
+                    email: trimmedEmail,
                     password: formData.password,
-                    fullName: formData.contact,
-                    phone: formData.phone,
-                    companyName: formData.name,
+                    fullName: trimmedContact,
+                    phone: formData.phone.trim(),
+                    companyName: trimmedName,
                     city: formData.city,
-                    address: formData.address,
+                    address: formData.address.trim(),
                 }),
             })
 
-            const result = await response.json()
+            const responseText = await response.text()
+            let result: { error?: string; message?: string } = {}
+
+            if (responseText) {
+                try {
+                    result = JSON.parse(responseText)
+                } catch {
+                    result = {
+                        error: 'Sunucudan beklenmeyen bir yanıt alındı.',
+                    }
+                }
+            }
 
             if (!response.ok) {
                 throw new Error(result.error || 'Bayi oluşturulamadı')
             }
 
+            setCreateDealerError(null)
+            setIsAddModalOpen(false)
+            setFormData(INITIAL_FORM_DATA)
             alert("Bayi hesabı başarıyla oluşturuldu!")
             await fetchDealers()
-            setIsAddModalOpen(false)
-            // Reset form
-            setFormData({
-                name: "",
-                contact: "",
-                email: "",
-                phone: "",
-                city: "İstanbul",
-                address: "",
-                password: "",
-                confirmPassword: "",
-                status: "active",
-            })
         } catch (error: any) {
             console.error("Error creating dealer:", error)
-            alert(error.message || "Bayi oluşturulurken bir hata oluştu.")
+            setCreateDealerError(error.message || "Bayi oluşturulurken bir hata oluştu.")
         } finally {
-            setLoading(false)
+            setIsCreatingDealer(false)
         }
     }
 
@@ -245,23 +280,39 @@ export default function BayilerPage() {
         if (!selectedDealer) return
 
         try {
-            setLoading(true)
-            // Delete from dealers table (users table deletion might be cascading or restricted)
-            const { error } = await supabase
-                .from("dealers")
-                .delete()
-                .eq("id", selectedDealer.id)
+            setDeleteDealerError(null)
+            setIsDeletingDealer(true)
 
-            if (error) throw error
+            const response = await fetch(`/api/dealers/${selectedDealer.id}`, {
+                method: "DELETE",
+            })
 
-            setDealers(dealers.filter(d => d.id !== selectedDealer.id))
+            const responseText = await response.text()
+            let result: { error?: string; message?: string } = {}
+
+            if (responseText) {
+                try {
+                    result = JSON.parse(responseText)
+                } catch {
+                    result = {
+                        error: "Sunucudan beklenmeyen bir yanıt alındı.",
+                    }
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error(result.error || "Bayi silinemedi")
+            }
+
+            await fetchDealers()
             setIsDeleteModalOpen(false)
             setSelectedDealer(null)
         } catch (error) {
-            console.error("Error deleting dealer:", error)
-            alert("Bayi silinirken bir hata oluştu.")
+            const message = getErrorMessage(error, "Bayi silinirken bir hata oluştu.")
+            console.error("Error deleting dealer:", message)
+            setDeleteDealerError(message)
         } finally {
-            setLoading(false)
+            setIsDeletingDealer(false)
         }
     }
 
@@ -281,6 +332,14 @@ export default function BayilerPage() {
         setIsEditModalOpen(true)
     }
 
+    const closeAddModal = () => {
+        if (isCreatingDealer) return
+
+        setIsAddModalOpen(false)
+        setCreateDealerError(null)
+        setFormData(INITIAL_FORM_DATA)
+    }
+
     return (
         <div className="flex-1 overflow-auto p-6">
             <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -289,7 +348,8 @@ export default function BayilerPage() {
                     <p className="text-slate-500 dark:text-slate-400">Bayileri görüntüleyin ve yönetin</p>
                 </div>
                 <Button onClick={() => {
-                    setFormData({ name: "", contact: "", email: "", phone: "", city: "İstanbul", address: "", password: "", confirmPassword: "", status: "active" })
+                    setCreateDealerError(null)
+                    setFormData(INITIAL_FORM_DATA)
                     setIsAddModalOpen(true)
                 }}>
                     <Plus className="h-4 w-4" />
@@ -367,7 +427,7 @@ export default function BayilerPage() {
                                             <div className="flex items-center justify-center gap-2">
                                                 <button onClick={() => { setSelectedDealer(dealer); setIsViewModalOpen(true); }} className="p-1 text-slate-400 hover:text-[#135bec]" title="Görüntüle"><Eye className="h-5 w-5" /></button>
                                                 <button onClick={() => openEditModal(dealer)} className="p-1 text-slate-400 hover:text-[#135bec]" title="Düzenle"><Edit className="h-5 w-5" /></button>
-                                                <button onClick={() => { setSelectedDealer(dealer); setIsDeleteModalOpen(true); }} className="p-1 text-slate-400 hover:text-red-500" title="Sil"><Trash2 className="h-5 w-5" /></button>
+                                                <button onClick={() => { setDeleteDealerError(null); setSelectedDealer(dealer); setIsDeleteModalOpen(true); }} className="p-1 text-slate-400 hover:text-red-500" title="Sil"><Trash2 className="h-5 w-5" /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -379,7 +439,7 @@ export default function BayilerPage() {
             </div>
 
             {/* Add Dealer Modal (with Account Creation) */}
-            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Bayi Hesabı Oluştur" size="lg">
+            <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Yeni Bayi Hesabı Oluştur" size="lg">
                 <div className="space-y-6">
                     {/* Company Info */}
                     <div>
@@ -450,10 +510,23 @@ export default function BayilerPage() {
                         <p className="mt-2 text-xs text-slate-500">Bayi bu bilgilerle portala giriş yapabilecek.</p>
                     </div>
 
+                    {createDealerError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                            {createDealerError}
+                        </div>
+                    ) : null}
+
                     <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                        <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>İptal</Button>
-                        <Button onClick={handleAdd}>Bayi Hesabı Oluştur</Button>
+                        <Button variant="outline" onClick={closeAddModal} disabled={isCreatingDealer}>İptal</Button>
+                        <Button onClick={handleAdd} isLoading={isCreatingDealer} disabled={isCreatingDealer}>
+                            {isCreatingDealer ? "Oluşturuluyor..." : "Bayi Hesabı Oluştur"}
+                        </Button>
                     </div>
+                    {isCreatingDealer ? (
+                        <p className="text-right text-xs text-slate-500 dark:text-slate-400">
+                            Bayi hesabı oluşturuluyor. Lütfen sayfadan ayrılmayın.
+                        </p>
+                    ) : null}
                 </div>
             </Modal>
 
@@ -530,15 +603,27 @@ export default function BayilerPage() {
             </Modal>
 
             {/* Delete Confirmation Modal */}
-            <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Bayi Sil" size="sm">
+            <Modal isOpen={isDeleteModalOpen} onClose={() => {
+                if (isDeletingDealer) return
+                setDeleteDealerError(null)
+                setIsDeleteModalOpen(false)
+            }} title="Bayi Sil" size="sm">
                 <div className="space-y-4">
                     <p className="text-slate-600 dark:text-slate-300">
-                        <strong>{selectedDealer?.company_name}</strong> bayisini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                        <strong>{selectedDealer?.company_name}</strong> bayisini silmek istediğinizden emin misiniz? Bayiye bağlı talepler, talep kalemleri, favoriler ve kullanıcı hesabı da silinecek. Bu işlem geri alınamaz.
                     </p>
+                    {deleteDealerError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                            {deleteDealerError}
+                        </div>
+                    ) : null}
                     <div className="flex justify-end gap-3">
-                        <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>İptal</Button>
-                        <Button variant="danger" onClick={handleDelete} disabled={loading}>
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        <Button variant="outline" onClick={() => {
+                            if (isDeletingDealer) return
+                            setDeleteDealerError(null)
+                            setIsDeleteModalOpen(false)
+                        }} disabled={isDeletingDealer}>İptal</Button>
+                        <Button variant="danger" onClick={handleDelete} disabled={isDeletingDealer} isLoading={isDeletingDealer}>
                             Sil
                         </Button>
                     </div>

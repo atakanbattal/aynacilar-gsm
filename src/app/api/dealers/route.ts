@@ -16,15 +16,32 @@ const supabaseAdmin = createClient(
     }
 )
 
+function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { email, password, fullName, phone, companyName, city, address } = body
+        const email = String(body.email || '').trim()
+        const password = String(body.password || '')
+        const fullName = String(body.fullName || '').trim()
+        const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+        const companyName = String(body.companyName || '').trim()
+        const city = typeof body.city === 'string' ? body.city.trim() : ''
+        const address = typeof body.address === 'string' ? body.address.trim() : ''
 
         // Validate required fields
         if (!email || !password || !fullName || !companyName) {
             return NextResponse.json(
                 { error: 'E-posta, şifre, yetkili adı ve şirket adı zorunludur' },
+                { status: 400 }
+            )
+        }
+
+        if (!isValidEmail(email)) {
+            return NextResponse.json(
+                { error: 'Lütfen geçerli bir e-posta adresi girin' },
                 { status: 400 }
             )
         }
@@ -51,6 +68,12 @@ export async function POST(request: NextRequest) {
             if (authError.message.includes('already registered')) {
                 return NextResponse.json(
                     { error: 'Bu e-posta adresi zaten kayıtlı' },
+                    { status: 400 }
+                )
+            }
+            if (authError.message.toLowerCase().includes('invalid format')) {
+                return NextResponse.json(
+                    { error: 'Lütfen geçerli bir e-posta adresi girin' },
                     { status: 400 }
                 )
             }
