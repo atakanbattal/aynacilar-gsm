@@ -5,6 +5,7 @@ import { User, Session } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase/client"
 
 type UserRole = "admin" | "dealer"
+const ADMIN_EMAILS = new Set(["admin@aynacilar.com.tr"])
 
 interface UserProfile {
     id: string
@@ -34,6 +35,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [session, setSession] = useState<Session | null>(null)
     const [loading, setLoading] = useState(true)
+
+    const fetchProfileWithTimeout = async (userId: string, timeoutMs = 5000) => {
+        return await Promise.race([
+            fetchProfile(userId),
+            new Promise<null>((resolve) =>
+                setTimeout(() => {
+                    console.error(`Profile fetch timed out after ${timeoutMs}ms`, { userId })
+                    resolve(null)
+                }, timeoutMs)
+            ),
+        ])
+    }
+
+    const getRoleFromUser = (currentUser: User | null, currentProfile: UserProfile | null): UserRole | null => {
+        if (currentProfile?.role) {
+            return currentProfile.role
+        }
+
+        const metadataRole = currentUser?.user_metadata?.role || currentUser?.app_metadata?.role
+        if (metadataRole === "admin" || metadataRole === "dealer") {
+            return metadataRole
+        }
+
+        const email = currentUser?.email?.toLowerCase()
+        if (email && ADMIN_EMAILS.has(email)) {
+            return "admin"
+        }
+
+        return currentUser ? "dealer" : null
+    }
+
+    const syncProfile = async (currentUser: User | null) => {
+        if (!currentUser) {
+            setProfile(null)
+            return
+        }
+
+        const nextProfile = await fetchProfileWithTimeout(currentUser.id)
+        setProfile(nextProfile)
+    }
 
     // Profil bilgilerini getir
     const fetchProfile = async (userId: string) => {
@@ -152,11 +193,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 setSession(session)
                 setUser(session?.user ?? null)
-
-                if (session?.user) {
-                    const profile = await fetchProfile(session.user.id)
-                    setProfile(profile)
-                }
+                setLoading(false)
+                void syncProfile(session?.user ?? null)
             } catch (error: any) {
                 console.error("Auth initialization error:", error)
                 // Clear session on any auth error
@@ -166,7 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null)
                     setProfile(null)
                 }
-            } finally {
                 setLoading(false)
             }
         }
@@ -178,14 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             async (event, session) => {
                 setSession(session)
                 setUser(session?.user ?? null)
-
-                if (session?.user) {
-                    const profile = await fetchProfile(session.user.id)
-                    setProfile(profile)
-                } else {
-                    setProfile(null)
-                }
                 setLoading(false)
+                void syncProfile(session?.user ?? null)
             }
         )
 
@@ -259,8 +290,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
-        isAdmin: profile?.role === "admin",
-        isDealer: profile?.role === "dealer",
+        isAdmin: getRoleFromUser(user, profile) === "admin",
+        isDealer: getRoleFromUser(user, profile) === "dealer",
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

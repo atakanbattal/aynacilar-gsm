@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -15,8 +15,45 @@ export default function GirisPage() {
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
     const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
+    const [awaitingRedirect, setAwaitingRedirect] = useState(false)
+    const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const router = useRouter()
-    const { signIn, profile } = useAuth()
+    const { signIn, user, loading: authLoading, isAdmin } = useAuth()
+
+    useEffect(() => {
+        return () => {
+            if (redirectTimeoutRef.current) {
+                clearTimeout(redirectTimeoutRef.current)
+            }
+        }
+    }, [])
+
+    useEffect(() => {
+        if (authLoading || !user) {
+            return
+        }
+
+        if (redirectTimeoutRef.current) {
+            clearTimeout(redirectTimeoutRef.current)
+            redirectTimeoutRef.current = null
+        }
+
+        const targetPath = isAdmin ? "/yonetim" : "/panel"
+        router.replace(targetPath)
+        router.refresh()
+        setLoading(false)
+        setAwaitingRedirect(false)
+    }, [authLoading, user, isAdmin, router])
+
+    useEffect(() => {
+        if (!awaitingRedirect || authLoading || user) {
+            return
+        }
+
+        setLoading(false)
+        setAwaitingRedirect(false)
+        setError("Giriş başarılı görünüyor ancak oturum başlatılamadı. Lütfen tekrar deneyin.")
+    }, [awaitingRedirect, authLoading, user])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -43,46 +80,13 @@ export default function GirisPage() {
 
             setEmailNotConfirmed(false)
 
-            // Profil kontrolü ve yönlendirme
             if (data?.session?.user) {
-                // Kullanıcı profilini çek
-                await new Promise(resolve => setTimeout(resolve, 500)) // Short delay to ensure session propagation
-
-                let profile = null
-                let profileError = null
-
-                // Retry logic for profile fetch
-                for (let i = 0; i < 3; i++) {
-                    const result = await supabase
-                        .from("users")
-                        .select("*")
-                        .eq("id", data.session.user.id)
-                        .single()
-
-                    if (!result.error) {
-                        profile = result.data
-                        profileError = null
-                        break
-                    }
-                    profileError = result.error
-                    await new Promise(resolve => setTimeout(resolve, 500)) // Wait before retry
-                }
-
-                if (profileError) {
-                    console.error("Profile fetch error after retries:", profileError)
-                    setError(`Profil hatası: ${profileError?.message} (Code: ${profileError?.code})`)
+                setAwaitingRedirect(true)
+                redirectTimeoutRef.current = setTimeout(() => {
                     setLoading(false)
-                    return
-                }
-
-                if (profile?.role === "admin") {
-                    console.log("Redirecting to admin panel")
-                    router.push("/yonetim")
-                } else {
-                    console.log("Redirecting to dealer panel")
-                    router.push("/panel")
-                }
-                router.refresh()
+                    setAwaitingRedirect(false)
+                    setError("Giriş işlemi beklenenden uzun sürdü. Sayfayı yenileyip tekrar deneyin.")
+                }, 6000)
             } else {
                 console.error("No session found in signIn response")
                 setError("Oturum açılamadı. Veri alınamadı.")

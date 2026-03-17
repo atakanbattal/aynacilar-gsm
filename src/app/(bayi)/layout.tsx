@@ -12,14 +12,16 @@ export default function BayiLayout({
 }: {
     children: React.ReactNode
 }) {
-    const { user, profile, loading } = useAuth()
+    const { user, profile, loading, isAdmin } = useAuth()
     const router = useRouter()
 
     useEffect(() => {
         if (!loading && !user) {
             router.push("/giris")
+        } else if (!loading && user && isAdmin) {
+            router.push("/yonetim")
         }
-    }, [user, loading, router])
+    }, [user, loading, isAdmin, router])
 
     if (loading) {
         return (
@@ -32,7 +34,7 @@ export default function BayiLayout({
         )
     }
 
-    if (!user) {
+    if (!user || isAdmin) {
         return null
     }
 
