@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchProfile(userId),
             new Promise<null>((resolve) =>
                 setTimeout(() => {
-                    console.error(`Profile fetch timed out after ${timeoutMs}ms`, { userId })
+                    console.warn(`Profile fetch timed out after ${timeoutMs}ms`, { userId })
                     resolve(null)
                 }, timeoutMs)
             ),
